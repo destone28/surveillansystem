@@ -67,19 +67,18 @@ class AudioDetector:
             timestamp = time.localtime()
             filename = f"audio_alert/sound_{timestamp[0]}{timestamp[1]:02d}{timestamp[2]:02d}_{timestamp[3]:02d}{timestamp[4]:02d}{timestamp[5]:02d}_{int(level)}.jpg"
 
-            # Salva l'immagine compressa
-            img.compress(quality=self.config.FRAME_QUALITY)
-            img.save(filename)
-            debug_print(f"Foto da audio salvata: {filename}")
+            # Salva l'immagine direttamente
+            success = self.file_manager.save_image(img, filename, self.config.FRAME_QUALITY)
 
             # Controlla il numero di file nella cartella e applica la logica FIFO
-            self.file_manager.manage_files("audio_alert", self.config.MAX_PHOTOS)
+            if success:
+                self.file_manager.manage_files("audio_alert", self.config.MAX_PHOTOS)
 
             red_led.off()
 
             # Reinizializza la camera per il rilevamento del movimento
             self.camera_detector.init_camera_for_motion()
-            return True
+            return success
         except Exception as e:
             debug_print(f"Errore nella cattura foto da audio: {e}")
             red_led.off()

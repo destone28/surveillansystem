@@ -11,8 +11,8 @@ class Config:
 
     # Camera settings
     MOTION_THRESHOLD = 4       # Soglia per il rilevamento del movimento (%)
-    FRAME_SIZE = sensor.VGA    # Risoluzione per rilevamento movimento
-    PHOTO_SIZE = sensor.VGA    # Risoluzione per le foto
+    FRAME_SIZE = sensor.QVGA    # Risoluzione per rilevamento movimento
+    PHOTO_SIZE = sensor.QVGA    # Risoluzione per le foto
     MAX_IMAGES = 20            # Numero massimo di immagini da mantenere per camera
     PHOTO_QUALITY = 90         # Qualità dell'immagine JPEG (0-100)
 

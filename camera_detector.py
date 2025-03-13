@@ -116,22 +116,31 @@ class CameraDetector:
             timestamp = int(time.time())
             filename = f"{directory}/img_{timestamp}.jpg"
 
-            # Salva l'immagine
-            img.save(filename, quality=self.config.PHOTO_QUALITY)
-            debug_print(f"Foto salvata: {filename}")
+            # Salva l'immagine usando il file manager migliorato
+            success = file_manager.save_image(img, filename, self.config.PHOTO_QUALITY)
 
             # Gestisci la logica FIFO
-            file_manager.manage_files(directory, self.config.MAX_IMAGES)
+            if success:
+                file_manager.manage_files(directory, self.config.MAX_IMAGES)
 
             # Spegni il LED rosso
             red_led.off()
 
-            # Reset della variabile di rilevamento
+            # Reset della variabile di rilevamento e torna alla modalità di rilevamento
             self.prev_pixels = None
+            if self.current_mode != "motion":
+                self.init_camera_for_motion()
 
-            return True
+            return success
         except Exception as e:
             debug_print(f"Errore nella cattura della foto: {e}")
             red_led.off()
+
+            # Tenta di tornare alla modalità motion comunque
+            try:
+                if self.current_mode != "motion":
+                    self.init_camera_for_motion()
+            except:
+                pass
 
             return False

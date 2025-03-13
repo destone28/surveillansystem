@@ -1,5 +1,6 @@
 import os
 import time
+import pyb
 
 def debug_print(msg):
     print(msg)
@@ -14,14 +15,13 @@ class FileManager:
     def ensure_directory(self, directory):
         """Assicura che una directory esista"""
         try:
-            # Verifica se la cartella esiste
             try:
                 os.stat(directory)
                 debug_print(f"Cartella {directory} esistente")
             except OSError:
-                # La cartella non esiste, creala
                 os.mkdir(directory)
                 debug_print(f"Cartella {directory} creata")
+                self.sync_filesystem()  # Sincronizza dopo la creazione
         except Exception as e:
             debug_print(f"Errore nella creazione della cartella {directory}: {e}")
 
@@ -45,7 +45,6 @@ class FileManager:
                     full_path = f"{directory}/{filename}"
                     try:
                         stat = os.stat(full_path)
-                        # Usa la data di creazione come criterio di ordinamento
                         file_info.append((full_path, stat[8]))  # stat[8] è mtime
                     except:
                         debug_print(f"Impossibile ottenere stat per {filename}")
@@ -55,11 +54,50 @@ class FileManager:
 
                 # Elimina i file più vecchi fino a quando non siamo sotto il limite
                 while len(file_info) >= max_files:
-                    oldest_file = file_info.pop(0)[0]  # Prendi il file più vecchio
+                    oldest_file = file_info.pop(0)[0]
                     debug_print(f"Eliminazione file più vecchio: {oldest_file}")
                     try:
                         os.remove(oldest_file)
                     except Exception as e:
                         debug_print(f"Errore eliminazione {oldest_file}: {e}")
+
+                # Sincronizza il filesystem dopo le eliminazioni
+                self.sync_filesystem()
         except Exception as e:
             debug_print(f"Errore nella gestione dei file in {directory}: {e}")
+
+    def save_image(self, img, filename, quality=90):
+        """Salva un'immagine con flush corretto"""
+        try:
+            debug_print(f"Salvataggio immagine: {filename}")
+
+            # Metodo diretto: salva l'immagine direttamente sul file
+            img.save(filename, quality=quality)
+
+            # Sincronizza il filesystem dopo il salvataggio
+            self.sync_filesystem()
+            debug_print(f"Immagine salvata con successo: {filename}")
+            return True
+        except Exception as e:
+            debug_print(f"Errore salvataggio immagine {filename}: {e}")
+            return False
+
+    def sync_filesystem(self):
+        """Sincronizza il filesystem per garantire che i file siano scritti su flash"""
+        try:
+            # Forza un sync del filesystem
+            os.sync()
+            debug_print("Filesystem sincronizzato")
+
+            # In alcuni casi, potrebbe essere necessario un approccio più aggressivo
+            try:
+                if hasattr(os, 'umount') and hasattr(os, 'mount'):
+                    # Solo per debug, non eseguire realmente a meno che non sia assolutamente necessario
+                    debug_print("Nota: disponibili funzioni umount/mount (da usare solo se necessario)")
+            except:
+                pass
+
+            return True
+        except Exception as e:
+            debug_print(f"Errore sincronizzazione filesystem: {e}")
+            return False

@@ -14,17 +14,36 @@ red_led = pyb.LED(1)
 green_led = pyb.LED(2)
 blue_led = pyb.LED(3)
 
+# Variabili per la sincronizzazione periodica
+last_sync_time = 0
+sync_interval = 30  # secondi
+
 def debug_print(msg):
     if Config.DEBUG:
         print(msg)
 
 def main():
+    global last_sync_time  # Dichiara last_sync_time come global
+    
     try:
         # Pulisci la memoria all'avvio
         gc.collect()
 
         # Inizializza il file manager
         file_manager = FileManager()
+        
+        # Configura un handler per il pulsante RESET - SPOSTATO QUI
+        def reset_pressed(line):
+            debug_print("Reset pressed, syncing filesystem...")
+            file_manager.sync_filesystem()
+            debug_print("Safe to reset now")
+
+        try:
+            # Configura interrupt sul pulsante RESET (se disponibile)
+            extint = pyb.ExtInt(pyb.Pin('RESET'), pyb.ExtInt.IRQ_FALLING, pyb.Pin.PULL_UP, reset_pressed)
+            debug_print("Reset button handler configured")
+        except:
+            debug_print("Reset button handler not available")
 
         # Inizializza i detector solo se abilitati
         camera_detector = None
@@ -108,6 +127,11 @@ def main():
                 # Lampeggia il LED blu ogni 30 cicli per indicare che il sistema è in esecuzione
                 if int(time.time() * 10) % 30 == 0:
                     blue_led.toggle()
+
+                # Sincronizzazione periodica del filesystem
+                if current_time - last_sync_time > sync_interval:
+                    file_manager.sync_filesystem()
+                    last_sync_time = current_time  # Ora funziona perché last_sync_time è dichiarato global
 
             except Exception as e:
                 debug_print(f"Errore nel loop principale: {e}")
