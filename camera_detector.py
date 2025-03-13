@@ -95,8 +95,8 @@ class CameraDetector:
 
         return False
 
-    def capture_photo(self, file_manager):
-        """Cattura una foto e la salva nella cartella camera_alert"""
+    def capture_photo(self, file_manager, directory="camera_alert"):
+        """Cattura una foto e la salva nella cartella specificata (default: camera_alert)"""
         if not self.camera_enabled:
             debug_print("Camera non disponibile per foto")
             return False
@@ -114,14 +114,14 @@ class CameraDetector:
 
             # Crea un nome file con timestamp
             timestamp = int(time.time())
-            filename = f"camera_alert/img_{timestamp}.jpg"
+            filename = f"{directory}/img_{timestamp}.jpg"
 
             # Salva l'immagine
             img.save(filename, quality=self.config.PHOTO_QUALITY)
             debug_print(f"Foto salvata: {filename}")
 
             # Gestisci la logica FIFO
-            file_manager.manage_files("camera_alert", self.config.MAX_IMAGES)
+            file_manager.manage_files(directory, self.config.MAX_IMAGES)
 
             # Spegni il LED rosso
             red_led.off()
