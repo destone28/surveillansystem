@@ -60,20 +60,20 @@ class FileManager:
                         os.remove(oldest_file)
                     except Exception as e:
                         debug_print(f"Errore eliminazione {oldest_file}: {e}")
-
+                
                 # Sincronizza il filesystem dopo le eliminazioni
                 self.sync_filesystem()
         except Exception as e:
             debug_print(f"Errore nella gestione dei file in {directory}: {e}")
-
+    
     def save_image(self, img, filename, quality=90):
         """Salva un'immagine con flush corretto"""
         try:
             debug_print(f"Salvataggio immagine: {filename}")
-
+            
             # Metodo diretto: salva l'immagine direttamente sul file
             img.save(filename, quality=quality)
-
+            
             # Sincronizza il filesystem dopo il salvataggio
             self.sync_filesystem()
             debug_print(f"Immagine salvata con successo: {filename}")
@@ -81,14 +81,14 @@ class FileManager:
         except Exception as e:
             debug_print(f"Errore salvataggio immagine {filename}: {e}")
             return False
-
+    
     def sync_filesystem(self):
         """Sincronizza il filesystem per garantire che i file siano scritti su flash"""
         try:
             # Forza un sync del filesystem
             os.sync()
             debug_print("Filesystem sincronizzato")
-
+            
             # In alcuni casi, potrebbe essere necessario un approccio più aggressivo
             try:
                 if hasattr(os, 'umount') and hasattr(os, 'mount'):
@@ -96,7 +96,7 @@ class FileManager:
                     debug_print("Nota: disponibili funzioni umount/mount (da usare solo se necessario)")
             except:
                 pass
-
+            
             return True
         except Exception as e:
             debug_print(f"Errore sincronizzazione filesystem: {e}")

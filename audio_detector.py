@@ -4,9 +4,7 @@ import audio
 import sensor
 
 # LED per debug
-red_led = pyb.LED(1)
 green_led = pyb.LED(2)
-blue_led = pyb.LED(3)
 
 # Variabile globale per l'istanza di AudioDetector (sarà impostata durante l'inizializzazione)
 global_audio_detector = None
@@ -21,19 +19,19 @@ def global_audio_callback(buf):
         global_audio_detector.process_audio(buf)
 
 class AudioDetector:
-    def __init__(self, config, file_manager, camera_detector):
+    def __init__(self, config, file_manager, photo_manager):
         global global_audio_detector
         global_audio_detector = self  # Assegna questa istanza alla variabile globale
-
+        
         self.config = config
         self.file_manager = file_manager
-        self.camera_detector = camera_detector  # Riferimento al camera_detector
+        self.photo_manager = photo_manager  # Invece di camera_detector, usiamo photo_manager
         self.audio_enabled = False
         self.last_capture_time = 0
         self.init_audio()
 
     def init_audio(self):
-        """Inizializza solo l'audio (la camera sarà gestita dal CameraDetector)"""
+        """Inizializza solo l'audio"""
         debug_print("Inizializzazione audio detector...")
 
         # Audio (solo inizializzazione, lo streaming viene avviato separatamente)
@@ -43,53 +41,6 @@ class AudioDetector:
             debug_print("Audio inizializzato")
         except Exception as e:
             debug_print(f"Errore audio: {e}")
-
-    def capture_photo(self, level):
-        """Cattura una foto quando viene rilevato un suono"""
-        # Controlla il periodo di inibizione
-        current_time = time.time()
-        if current_time - self.last_capture_time < self.config.INHIBIT_PERIOD:
-            return
-
-        self.last_capture_time = current_time
-
-        try:
-            # Accende il LED rosso durante la cattura
-            red_led.on()
-
-            # Usa il camera_detector per preparare la camera
-            self.camera_detector.init_camera_for_photo()
-
-            # Cattura l'immagine
-            img = sensor.snapshot()
-
-            # Genera il timestamp per il nome del file
-            timestamp = time.localtime()
-            filename = f"audio_alert/sound_{timestamp[0]}{timestamp[1]:02d}{timestamp[2]:02d}_{timestamp[3]:02d}{timestamp[4]:02d}{timestamp[5]:02d}_{int(level)}.jpg"
-
-            # Salva l'immagine direttamente
-            success = self.file_manager.save_image(img, filename, self.config.FRAME_QUALITY)
-
-            # Controlla il numero di file nella cartella e applica la logica FIFO
-            if success:
-                self.file_manager.manage_files("audio_alert", self.config.MAX_PHOTOS)
-
-            red_led.off()
-
-            # Reinizializza la camera per il rilevamento del movimento
-            self.camera_detector.init_camera_for_motion()
-            return success
-        except Exception as e:
-            debug_print(f"Errore nella cattura foto da audio: {e}")
-            red_led.off()
-
-            # Tenta di reinizializzare la camera per il rilevamento del movimento
-            try:
-                self.camera_detector.init_camera_for_motion()
-            except:
-                pass
-
-            return False
 
     def process_audio(self, buf):
         """Elabora i dati audio ricevuti dalla callback"""
@@ -104,10 +55,20 @@ class AudioDetector:
 
             if level > self.config.SOUND_THRESHOLD:
                 debug_print(f"Suono rilevato: {level}")
-                # Lampeggia LED per debug
+                
+                # Controlla il periodo di inibizione
+                current_time = time.time()
+                if current_time - self.last_capture_time < self.config.INHIBIT_PERIOD:
+                    return
+                    
+                self.last_capture_time = current_time
+                
+                # Lampeggia LED verde per debug
                 green_led.on()
-                # Cattura una foto
-                self.capture_photo(level)
+                
+                # Cattura foto usando PhotoManager
+                self.photo_manager.capture_save_photo("audio_alert", "sound", int(level))
+                
                 green_led.off()
         except Exception as e:
             debug_print(f"Errore elaborazione audio: {e}")
