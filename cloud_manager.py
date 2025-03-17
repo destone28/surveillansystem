@@ -124,37 +124,72 @@ class CloudManager:
             return False
             
         try:
-            logger.info("Sincronizzazione stato dal cloud...", cloud=False)
+            # logger.info("Sincronizzazione stato dal cloud...", cloud=False)
             
             # Leggi le variabili dal cloud e aggiorna la configurazione locale
             try:
                 # Prima richiedi un aggiornamento dal cloud
                 self.client.update()
                 
-                # Leggi lo stato dell'interruttore globale
-                cloud_global_enable = self.client["global_enable"]
-                self.config.GLOBAL_ENABLE = cloud_global_enable
+                # Impostazioni principali
+                self.config.GLOBAL_ENABLE = self.client["global_enable"]
+                self.config.CAMERA_MONITORING_ENABLED = self.client["camera_monitoring"] 
+                self.config.AUDIO_MONITORING_ENABLED = self.client["audio_monitoring"]
+                self.config.DISTANCE_MONITORING_ENABLED = self.client["distance_monitoring"]
                 
-                # Leggi gli stati dei singoli interruttori
-                cloud_camera_monitoring = self.client["camera_monitoring"] 
-                cloud_audio_monitoring = self.client["audio_monitoring"]
-                cloud_distance_monitoring = self.client["distance_monitoring"]
+                # Soglie
+                self.config.SOUND_THRESHOLD = self.config.validate_threshold(
+                    self.client["sound_threshold"],
+                    self.config.SOUND_THRESHOLD_MIN,
+                    self.config.SOUND_THRESHOLD_MAX,
+                    self.config.SOUND_THRESHOLD
+                )
                 
-                # Aggiorna la configurazione locale
-                self.config.CAMERA_MONITORING_ENABLED = cloud_camera_monitoring
-                self.config.AUDIO_MONITORING_ENABLED = cloud_audio_monitoring
-                self.config.DISTANCE_MONITORING_ENABLED = cloud_distance_monitoring
+                self.config.MOTION_THRESHOLD = self.config.validate_threshold(
+                    self.client["motion_threshold"],
+                    self.config.MOTION_THRESHOLD_MIN,
+                    self.config.MOTION_THRESHOLD_MAX,
+                    self.config.MOTION_THRESHOLD
+                )
                 
-                # Aggiorna tutte le altre impostazioni
-                self.config.SOUND_THRESHOLD = self.client["sound_threshold"]
-                self.config.MOTION_THRESHOLD = self.client["motion_threshold"]
-                self.config.DISTANCE_THRESHOLD = self.client["distance_threshold"]
-                self.config.VIDEO_DURATION = self.client["video_duration"]
-                self.config.VIDEO_FPS = self.client["video_fps"]
-                self.config.VIDEO_QUALITY = self.client["video_quality"]
-                self.config.INHIBIT_PERIOD = self.client["inhibit_period"]
+                self.config.DISTANCE_THRESHOLD = self.config.validate_threshold(
+                    self.client["distance_threshold"],
+                    self.config.DISTANCE_THRESHOLD_MIN,
+                    self.config.DISTANCE_THRESHOLD_MAX,
+                    self.config.DISTANCE_THRESHOLD
+                )
                 
-                logger.info(f"Stato sincronizzato dal cloud: Global={cloud_global_enable}, Camera={cloud_camera_monitoring}, Audio={cloud_audio_monitoring}, Distance={cloud_distance_monitoring}")
+                # Impostazioni video
+                self.config.VIDEO_DURATION = self.config.validate_threshold(
+                    self.client["video_duration"],
+                    self.config.VIDEO_DURATION_MIN,
+                    self.config.VIDEO_DURATION_MAX,
+                    self.config.VIDEO_DURATION
+                )
+                
+                self.config.VIDEO_FPS = self.config.validate_threshold(
+                    self.client["video_fps"],
+                    self.config.VIDEO_FPS_MIN,
+                    self.config.VIDEO_FPS_MAX,
+                    self.config.VIDEO_FPS
+                )
+                
+                self.config.VIDEO_QUALITY = self.config.validate_threshold(
+                    self.client["video_quality"],
+                    self.config.VIDEO_QUALITY_MIN,
+                    self.config.VIDEO_QUALITY_MAX,
+                    self.config.VIDEO_QUALITY
+                )
+                
+                # Altre impostazioni
+                self.config.INHIBIT_PERIOD = self.config.validate_threshold(
+                    self.client["inhibit_period"],
+                    self.config.INHIBIT_PERIOD_MIN,
+                    self.config.INHIBIT_PERIOD_MAX,
+                    self.config.INHIBIT_PERIOD
+                )
+                
+                # logger.info(f"Stato sincronizzato dal cloud: Global={self.config.GLOBAL_ENABLE}, Camera={self.config.CAMERA_MONITORING_ENABLED}, Audio={self.config.AUDIO_MONITORING_ENABLED}, Distance={self.config.DISTANCE_MONITORING_ENABLED}")
                 return True
             
             except Exception as e:
@@ -164,7 +199,7 @@ class CloudManager:
         except Exception as e:
             logger.error(f"Errore sincronizzazione dal cloud: {e}")
             return False
-    
+
     def sync_to_cloud(self):
         """Sincronizza lo stato dalla configurazione locale alle variabili cloud"""
         if not self.is_connected or not self.client:
@@ -234,19 +269,58 @@ class CloudManager:
         self.sync_to_cloud()
         
     def _on_sound_threshold_change(self, client, value):
-        self.config.SOUND_THRESHOLD = value
-        logger.info(f"Sound threshold cambiato a {value}")
-        client.update()  # Aggiornamento necessario in modalità sincrona
+        """Callback quando la soglia audio cambia"""
+        validated_value = self.config.validate_threshold(
+            value, 
+            self.config.SOUND_THRESHOLD_MIN, 
+            self.config.SOUND_THRESHOLD_MAX, 
+            self.config.SOUND_THRESHOLD
+        )
         
+        if validated_value != value:
+            logger.warning(f"Sound threshold corretto da {value} a {validated_value}")
+            # Correggi anche il valore nel cloud
+            client["sound_threshold"] = validated_value
+            
+        self.config.SOUND_THRESHOLD = validated_value
+        logger.info(f"Sound threshold impostato a {validated_value}")
+        client.update()
+
     def _on_motion_threshold_change(self, client, value):
-        self.config.MOTION_THRESHOLD = value
-        logger.info(f"Motion threshold cambiato a {value}")
-        client.update()  # Aggiornamento necessario in modalità sincrona
+        """Callback quando la soglia di movimento cambia"""
+        validated_value = self.config.validate_threshold(
+            value, 
+            self.config.MOTION_THRESHOLD_MIN, 
+            self.config.MOTION_THRESHOLD_MAX, 
+            self.config.MOTION_THRESHOLD
+        )
         
+        if validated_value != value:
+            logger.warning(f"Motion threshold corretto da {value} a {validated_value}")
+            # Correggi anche il valore nel cloud
+            client["motion_threshold"] = validated_value
+            
+        self.config.MOTION_THRESHOLD = validated_value
+        logger.info(f"Motion threshold impostato a {validated_value}")
+        client.update()
+
     def _on_distance_threshold_change(self, client, value):
-        self.config.DISTANCE_THRESHOLD = value
-        logger.info(f"Distance threshold cambiato a {value}")
-        client.update()  # Aggiornamento necessario in modalità sincrona
+        """Callback quando la soglia di distanza cambia"""
+        validated_value = self.config.validate_threshold(
+            value, 
+            self.config.DISTANCE_THRESHOLD_MIN, 
+            self.config.DISTANCE_THRESHOLD_MAX, 
+            self.config.DISTANCE_THRESHOLD
+        )
+        
+        if validated_value != value:
+            logger.warning(f"Distance threshold corretto da {value} a {validated_value}")
+            # Correggi anche il valore nel cloud
+            client["distance_threshold"] = validated_value
+            
+        self.config.DISTANCE_THRESHOLD = validated_value
+        logger.info(f"Distance threshold impostato a {validated_value}")
+        client.update()
         
     def _on_inhibit_period_change(self, client, value):
         self.config.INHIBIT_PERIOD = value
@@ -297,30 +371,32 @@ class CloudManager:
         """Avvia la connessione al cloud"""
         try:
             if self.client:
-                # In modalità sincrona, start() connette ma update() deve essere chiamato periodicamente
                 try:
                     self.client.start()
                     self.is_connected = True
                     logger.info("Connessione Arduino IoT Cloud avviata")
                     
-                    # Esegui immediatamente un update per sincronizzare lo stato
-                    self.client.update()
+                    # Sincronizzazione bidirezionale all'avvio
+                    for i in range(3):  # Tentativi multipli
+                        time.sleep(0.5)
+                        # Prima sincronizza dal cloud alla config locale
+                        if self.sync_from_cloud():
+                            logger.info("Configurazione iniziale sincronizzata dal cloud")
+                            break
                     
-                    # Sincronizza lo stato dal cloud alla configurazione locale
-                    time.sleep(0.5)  # Piccola pausa per assicurarsi che i dati arrivino
-                    self.sync_from_cloud()
+                    # Poi sincronizza dalla config locale al cloud (per sicurezza)
+                    time.sleep(0.5)
+                    self.sync_to_cloud()
                     
                     self.update_status("Sistema connesso e online")
                     return True
                 except Exception as e:
                     logger.error(f"Errore durante avvio client cloud: {str(e)}")
-                    # Tentativo alternativo di connessione
+                    # Tentativo alternativo
                     logger.info("Tentativo alternativo di connessione cloud...")
                     time.sleep(1)
                     self.client.update()
                     self.is_connected = True
-                    
-                    # Sincronizza lo stato dal cloud alla configurazione locale
                     self.sync_from_cloud()
                     return True
             return False

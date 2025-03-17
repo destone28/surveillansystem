@@ -4,18 +4,18 @@ import pyb
 import sensor
 import image
 import gc
+import logger
 
 # LED per feedback visivo
 green_led = pyb.LED(2)
 
-def debug_print(msg):
-    print(msg)
-
 class CameraDetector:
     def __init__(self, config):
         self.config = config
+        self.prev_img = None
         self.prev_pixels = None
         self.camera_enabled = False
+        self.debug_counter = 0
         
         # Forza il garbage collection all'avvio
         gc.collect()
@@ -29,15 +29,25 @@ class CameraDetector:
             sensor.reset()
             sensor.set_pixformat(sensor.GRAYSCALE)  # Usa scala di grigi per il motion detection
             sensor.set_framesize(self.config.FRAME_SIZE)
+            sensor.set_contrast(3)  # Aumenta il contrasto per migliorare il rilevamento movimento
+            sensor.set_brightness(0)
+            sensor.set_saturation(0)
+            sensor.set_auto_gain(False)  # Disabilita auto gain per rilevazione più stabile
+            sensor.set_auto_whitebal(False)  # Disabilita white balance per rilevazione più stabile
             sensor.set_vflip(False)
             sensor.set_hmirror(True)
-            sensor.skip_frames(time=2000)
+            sensor.skip_frames(time=500)  # Ridotto per migliorare i tempi di risposta
+            
+            # Attendi che la camera si stabilizzi
+            for i in range(5):
+                sensor.snapshot()
+                time.sleep(0.1)
             
             self.camera_enabled = True
-            debug_print("Camera inizializzata per motion detection")
-            debug_print(f"Dimensione immagine: {sensor.width()}x{sensor.height()}")
+            logger.info("Camera inizializzata per motion detection")
+            logger.info(f"Dimensione immagine: {sensor.width()}x{sensor.height()}")
         except Exception as e:
-            debug_print(f"Errore camera motion: {e}")
+            logger.error(f"Errore camera motion: {e}")
     
     def check_motion(self):
         """Controlla se c'è movimento nell'inquadratura"""
@@ -45,33 +55,46 @@ class CameraDetector:
             return False
         
         try:
-            img = sensor.snapshot()
+            # Cattura l'immagine corrente
+            current_img = sensor.snapshot()
             
-            # Calcola la media dell'immagine
-            hist = img.get_histogram()
-            mean = hist.get_statistics().mean()
+            # Aumenta il contatore di debug
+            self.debug_counter += 1
             
-            # Se è il primo frame, memorizza il valore e esci
-            if self.prev_pixels is None:
-                self.prev_pixels = mean
+            # Log periodico ogni 50 frame
+            if self.debug_counter % 50 == 0:
+                logger.debug(f"Camera motion check attivo, soglia: {self.config.MOTION_THRESHOLD}%", verbose=True)
+            
+            # Se è il primo frame, memorizza e esci
+            if self.prev_img is None:
+                self.prev_img = current_img.copy()
                 return False
             
-            # Calcola la variazione percentuale
-            diff_percent = abs(mean - self.prev_pixels) / self.prev_pixels * 100
+            # Calcola la differenza tra i frame
+            diff = current_img.difference(self.prev_img)
             
-            # Aggiorna il valore precedente
-            self.prev_pixels = mean
+            # Calcola la percentuale di pixel cambiati
+            stats = diff.get_statistics()
+            diff_percent = (stats.mean() / 255) * 100  # Normalizza in percentuale
+            
+            # Aggiorna l'immagine precedente (a intervalli, non sempre)
+            if self.debug_counter % 3 == 0:  # Ogni 3 frame
+                self.prev_img = current_img.copy()
             
             # Verifica se la variazione supera la soglia
             if diff_percent > self.config.MOTION_THRESHOLD:
-                debug_print(f"Movimento rilevato: {diff_percent:.2f}%")
+                logger.info(f"Movimento rilevato: {diff_percent:.2f}% (soglia: {self.config.MOTION_THRESHOLD}%)")
                 return True
                 
         except Exception as e:
-            debug_print(f"Errore motion detection: {e}")
+            logger.error(f"Errore motion detection: {e}")
+            # Reset in caso di errore
+            self.prev_img = None
             
         return False
     
     def reset_detection(self):
-        """Resetta il rilevamento del movimento (da chiamare dopo aver cambiato modalità camera)"""
+        """Resetta il rilevamento del movimento"""
+        self.prev_img = None
         self.prev_pixels = None
+        logger.info("Reset rilevamento movimento")

@@ -70,80 +70,83 @@ def main():
         time.sleep(1)
         blue_led.off()
         
-        # Loop principale
+        # Variabili di controllo ciclo
         last_motion_time = 0
         last_distance_time = 0
         last_sync_time = 0
         last_check_state_time = 0
         last_cloud_sync_time = 0
-        
-        # Intervalli vari
-        sync_interval = 30            # Sincronizzazione filesystem (secondi)
-        check_state_interval = 3      # Controllo stato sensori (secondi)
-        cloud_sync_interval = 10      # Sincronizzazione cloud-config (secondi)
+        last_distance_recalibration = 0  # Nuova variabile per ricalibratura periodica
         
         # Loop principale
         while True:
             try:
                 current_time = time.time()
                 
-                # Controlla la connessione cloud con frequenza adeguata
-                if cloud_manager:
+                # Controlla la connessione cloud
+                if cloud_manager and cloud_manager.is_connected:
                     cloud_manager.check_connection()
                 
-                # Sincronizzazione periodica del filesystem
-                if current_time - last_sync_time > sync_interval:
+                # Sincronizzazione filesystem
+                if current_time - last_sync_time > Config.FILESYSTEM_SYNC_INTERVAL:
                     file_manager.sync_filesystem()
                     last_sync_time = current_time
                 
-                # Sincronizzazione periodica tra cloud e configurazione locale
-                if cloud_manager and cloud_manager.is_connected and (current_time - last_cloud_sync_time > cloud_sync_interval):
+                # Sincronizzazione cloud
+                if cloud_manager and cloud_manager.is_connected and (current_time - last_cloud_sync_time > Config.CLOUD_SYNC_INTERVAL):
                     cloud_manager.sync_from_cloud()
                     last_cloud_sync_time = current_time
                 
-                # Controlla periodicamente se i detector devono essere creati o distrutti
-                if current_time - last_check_state_time > check_state_interval:
+                # Gestione inizializzazione detector
+                if current_time - last_check_state_time > Config.DETECTOR_CHECK_INTERVAL:
                     last_check_state_time = current_time
                     
+                    # Gestione detector in base allo stato globale
                     if Config.GLOBAL_ENABLE:
-                        # Camera: crea se abilitato ma non esistente
-                        if Config.CAMERA_MONITORING_ENABLED and not camera_detector:
-                            photo_manager.init_camera_for_motion()
-                            camera_detector = CameraDetector(Config)
-                            logger.info("Rilevatore camera inizializzato (on-demand)")
-                        # Camera: distruggi se disabilitato ma esistente
-                        elif not Config.CAMERA_MONITORING_ENABLED and camera_detector:
-                            camera_detector = None
-                            logger.info("Rilevatore camera disattivato")
+                        # Camera detector
+                        if Config.CAMERA_MONITORING_ENABLED:
+                            if not camera_detector:
+                                photo_manager.init_camera_for_motion()
+                                camera_detector = CameraDetector(Config)
+                                logger.info("Rilevatore camera inizializzato (on-demand)")
+                        else:
+                            if camera_detector:
+                                camera_detector = None
+                                logger.info("Rilevatore camera disattivato")
                         
-                        # Audio: crea se abilitato ma non esistente
-                        if Config.AUDIO_MONITORING_ENABLED and not audio_detector:
-                            audio_detector = AudioDetector(Config, file_manager, photo_manager)
-                            audio_detector.start_audio_detection()
-                            if cloud_manager:
-                                audio_detector.set_cloud_manager(cloud_manager)
-                            logger.info("Rilevatore audio inizializzato e avviato (on-demand)")
-                        # Audio: distruggi se disabilitato ma esistente
-                        elif not Config.AUDIO_MONITORING_ENABLED and audio_detector:
-                            audio_detector.stop_audio_detection()
-                            audio_detector = None
-                            logger.info("Rilevatore audio disattivato")
+                        # Audio detector
+                        if Config.AUDIO_MONITORING_ENABLED:
+                            if not audio_detector:
+                                audio_detector = AudioDetector(Config, file_manager, photo_manager)
+                                audio_detector.start_audio_detection()
+                                if cloud_manager:
+                                    audio_detector.set_cloud_manager(cloud_manager)
+                                logger.info("Rilevatore audio inizializzato e avviato (on-demand)")
+                        else:
+                            if audio_detector:
+                                audio_detector.stop_audio_detection()
+                                audio_detector = None
+                                logger.info("Rilevatore audio disattivato")
                         
-                        # Distanza: crea se abilitato ma non esistente
-                        if Config.DISTANCE_MONITORING_ENABLED and not distance_detector:
-                            distance_detector = DistanceDetector(Config)
-                            if distance_detector.distance_enabled:
-                                logger.info(f"Rilevatore distanza inizializzato (on-demand), distanza base: {distance_detector.base_distance}mm")
-                            else:
-                                logger.warning("Errore inizializzazione sensore distanza")
+                        # Distance detector
+                        if Config.DISTANCE_MONITORING_ENABLED:
+                            if not distance_detector:
+                                distance_detector = DistanceDetector(Config)
+                                if distance_detector.distance_enabled:
+                                    logger.info(f"Rilevatore distanza inizializzato (on-demand), distanza base: {distance_detector.base_distance:.1f}mm")
+                                else:
+                                    logger.warning("Errore inizializzazione sensore distanza")
+                                    distance_detector = None
+                            elif current_time - last_distance_recalibration > Config.DISTANCE_RECALIBRATION:
+                                # Ricalibrare periodicamente il sensore di distanza
+                                distance_detector.recalibrate()
+                                last_distance_recalibration = current_time
+                        else:
+                            if distance_detector:
                                 distance_detector = None
-                        # Distanza: distruggi se disabilitato ma esistente
-                        elif not Config.DISTANCE_MONITORING_ENABLED and distance_detector:
-                            distance_detector = None
-                            logger.info("Rilevatore distanza disattivato")
-                    
-                    # Se GLOBAL_ENABLE è disattivato, assicurati che tutti i detector siano distrutti
-                    elif not Config.GLOBAL_ENABLE:
+                                logger.info("Rilevatore distanza disattivato")
+                    else:
+                        # Disattiva tutti i detector se GLOBAL_ENABLE è disattivato
                         if camera_detector:
                             camera_detector = None
                             logger.info("Rilevatore camera disattivato (global disable)")
@@ -157,9 +160,9 @@ def main():
                             distance_detector = None
                             logger.info("Rilevatore distanza disattivato (global disable)")
                 
-                # Esegui il monitoraggio solo se GLOBAL_ENABLE è attivato
+                # SEZIONE RILEVAMENTO EVENTI
                 if Config.GLOBAL_ENABLE:
-                    # Controllo camera solo se abilitato
+                    # Rilevamento movimento camera
                     if Config.CAMERA_MONITORING_ENABLED and camera_detector:
                         if current_time - last_motion_time > Config.INHIBIT_PERIOD:
                             if camera_detector.check_motion():
@@ -169,46 +172,46 @@ def main():
                                 time.sleep(0.1)
                                 green_led.off()
                                 
-                                # Cattura una foto usando il photo manager
+                                # Cattura foto
                                 if photo_manager.capture_save_photo("camera_alert"):
                                     last_motion_time = current_time
-                                    # Reset del rilevamento di movimento
+                                    # Reset rilevamento movimento
                                     camera_detector.reset_detection()
                                     
                                     # Notifica cloud
                                     if cloud_manager:
                                         cloud_manager.notify_event("Motion", "Camera trigger")
                     
-                    # Controllo distanza solo se abilitato
+                    # Rilevamento variazione distanza
                     if Config.DISTANCE_MONITORING_ENABLED and distance_detector and distance_detector.distance_enabled:
                         if current_time - last_distance_time > Config.INHIBIT_PERIOD:
                             if distance_detector.check_distance():
-                                event_msg = "Distanza variata, cattura foto..."
+                                current_distance = distance_detector.read_distance()
+                                event_msg = f"Distanza variata: {current_distance:.1f}mm, cattura foto..."
                                 logger.info(event_msg)
                                 green_led.on()
                                 time.sleep(0.1)
                                 green_led.off()
                                 
-                                # Cattura una foto nella cartella distance_alert
-                                if photo_manager.capture_save_photo("distance_alert", "dist"):
+                                # Cattura foto
+                                if photo_manager.capture_save_photo("distance_alert", "dist", int(current_distance)):
                                     last_distance_time = current_time
                                     
                                     # Notifica cloud
                                     if cloud_manager:
-                                        current_distance = distance_detector.read_distance()
-                                        cloud_manager.notify_event("Distance", f"Distanza: {current_distance}mm")
+                                        cloud_manager.notify_event("Distance", f"Distanza: {int(current_distance)}mm")
                 else:
-                    # Lampeggia LED per indicare che il sistema è in standby
+                    # Sistema disabilitato
                     if int(time.time() * 2) % 10 == 0:
                         red_led.toggle()
                 
-                # Breve pausa per ridurre il carico CPU
-                pyb.delay(100)
+                # Pausa breve per ridurre carico CPU
+                pyb.delay(50)  # Ridotto per rendere il rilevamento più reattivo
                 
-                # Lampeggia il LED blu ogni 30 cicli per indicare che il sistema è in esecuzione
+                # Indicazione attività sistema
                 if int(time.time() * 10) % 30 == 0:
                     blue_led.toggle()
-                
+            
             except Exception as e:
                 logger.error(f"Errore nel loop principale: {e}")
                 time.sleep(1)

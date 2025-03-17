@@ -1,6 +1,7 @@
 import os
 import time
 import pyb
+import logger
 
 def debug_print(msg):
     print(msg)
@@ -87,17 +88,8 @@ class FileManager:
         try:
             # Forza un sync del filesystem
             os.sync()
-            debug_print("Filesystem sincronizzato")
-            
-            # In alcuni casi, potrebbe essere necessario un approccio più aggressivo
-            try:
-                if hasattr(os, 'umount') and hasattr(os, 'mount'):
-                    # Solo per debug, non eseguire realmente a meno che non sia assolutamente necessario
-                    debug_print("Nota: disponibili funzioni umount/mount (da usare solo se necessario)")
-            except:
-                pass
-            
+            logger.debug("Filesystem sincronizzato", verbose=True)
             return True
         except Exception as e:
-            debug_print(f"Errore sincronizzazione filesystem: {e}")
+            logger.error(f"Errore sincronizzazione filesystem: {e}")
             return False

@@ -35,15 +35,16 @@ class AudioDetector:
 
         # Audio (solo inizializzazione, lo streaming viene avviato separatamente)
         try:
-            audio.init(channels=1, frequency=16000, gain_db=24, highpass=0.9883)
+            audio.init(channels=1, frequency=16000, gain_db=self.config.AUDIO_GAIN, highpass=0.9883)
             self.audio_enabled = True
-            logger.info("Audio inizializzato")
+            logger.info(f"Audio inizializzato con gain {self.config.AUDIO_GAIN}dB")
         except Exception as e:
             logger.error(f"Errore audio: {e}")
 
     def process_audio(self, buf):
         """Elabora i dati audio ricevuti dalla callback"""
-        if not self.audio_enabled or not self.config.AUDIO_MONITORING_ENABLED:
+        # Verifica se l'audio è abilitato E se il monitoraggio audio è attivo
+        if not self.audio_enabled or not self.config.AUDIO_MONITORING_ENABLED or not self.config.GLOBAL_ENABLE:
             return
 
         try:
@@ -53,7 +54,7 @@ class AudioDetector:
             level = sum(abs(s) for s in samples) / len(samples)
 
             if level > self.config.SOUND_THRESHOLD:
-                logger.info(f"Suono rilevato: {level}")
+                logger.info(f"Suono rilevato: {level} (soglia: {self.config.SOUND_THRESHOLD})")
                 
                 # Controlla il periodo di inibizione
                 current_time = time.time()
@@ -68,7 +69,7 @@ class AudioDetector:
                 # Cattura foto usando PhotoManager
                 if self.photo_manager.capture_save_photo("audio_alert", "sound", int(level)):
                     # Notifica cloud se disponibile
-                    if hasattr(self, 'cloud_manager') and self.cloud_manager:
+                    if self.cloud_manager:
                         self.cloud_manager.notify_event("Audio", f"Livello: {int(level)}")
                 
                 green_led.off()
