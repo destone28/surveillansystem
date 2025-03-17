@@ -2,15 +2,13 @@ import time
 import pyb
 import audio
 import sensor
+import logger
 
 # LED per debug
 green_led = pyb.LED(2)
 
 # Variabile globale per l'istanza di AudioDetector (sarà impostata durante l'inizializzazione)
 global_audio_detector = None
-
-def debug_print(msg):
-    print(msg)
 
 # Funzione di callback globale per l'audio
 def global_audio_callback(buf):
@@ -25,26 +23,27 @@ class AudioDetector:
         
         self.config = config
         self.file_manager = file_manager
-        self.photo_manager = photo_manager  # Invece di camera_detector, usiamo photo_manager
+        self.photo_manager = photo_manager
+        self.cloud_manager = None  # Sarà impostato dal main
         self.audio_enabled = False
         self.last_capture_time = 0
         self.init_audio()
 
     def init_audio(self):
         """Inizializza solo l'audio"""
-        debug_print("Inizializzazione audio detector...")
+        logger.info("Inizializzazione audio detector...")
 
         # Audio (solo inizializzazione, lo streaming viene avviato separatamente)
         try:
             audio.init(channels=1, frequency=16000, gain_db=24, highpass=0.9883)
             self.audio_enabled = True
-            debug_print("Audio inizializzato")
+            logger.info("Audio inizializzato")
         except Exception as e:
-            debug_print(f"Errore audio: {e}")
+            logger.error(f"Errore audio: {e}")
 
     def process_audio(self, buf):
         """Elabora i dati audio ricevuti dalla callback"""
-        if not self.audio_enabled:
+        if not self.audio_enabled or not self.config.AUDIO_MONITORING_ENABLED:
             return
 
         try:
@@ -54,7 +53,7 @@ class AudioDetector:
             level = sum(abs(s) for s in samples) / len(samples)
 
             if level > self.config.SOUND_THRESHOLD:
-                debug_print(f"Suono rilevato: {level}")
+                logger.info(f"Suono rilevato: {level}")
                 
                 # Controlla il periodo di inibizione
                 current_time = time.time()
@@ -67,33 +66,40 @@ class AudioDetector:
                 green_led.on()
                 
                 # Cattura foto usando PhotoManager
-                self.photo_manager.capture_save_photo("audio_alert", "sound", int(level))
+                if self.photo_manager.capture_save_photo("audio_alert", "sound", int(level)):
+                    # Notifica cloud se disponibile
+                    if hasattr(self, 'cloud_manager') and self.cloud_manager:
+                        self.cloud_manager.notify_event("Audio", f"Livello: {int(level)}")
                 
                 green_led.off()
         except Exception as e:
-            debug_print(f"Errore elaborazione audio: {e}")
+            logger.error(f"Errore elaborazione audio: {e}")
 
     def start_audio_detection(self):
         """Avvia il rilevamento audio"""
         if not self.audio_enabled:
-            debug_print("Audio non disponibile per il rilevamento")
+            logger.warning("Audio non disponibile per il rilevamento")
             return False
 
         try:
             # Avvia lo streaming audio con la callback globale
             audio.start_streaming(global_audio_callback)
-            debug_print("Streaming audio avviato")
+            logger.info("Streaming audio avviato")
             return True
         except Exception as e:
-            debug_print(f"Errore avvio streaming audio: {e}")
+            logger.error(f"Errore avvio streaming audio: {e}")
             return False
 
     def stop_audio_detection(self):
         """Ferma il rilevamento audio"""
         try:
             audio.stop_streaming()
-            debug_print("Streaming audio fermato")
+            logger.info("Streaming audio fermato")
             return True
         except Exception as e:
-            debug_print(f"Errore stop streaming audio: {e}")
+            logger.error(f"Errore stop streaming audio: {e}")
             return False
+        
+    def set_cloud_manager(self, cloud_manager):
+        """Imposta il riferimento al cloud manager"""
+        self.cloud_manager = cloud_manager
