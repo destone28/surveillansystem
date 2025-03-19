@@ -7,94 +7,119 @@ import gc
 import logger
 
 # LED per feedback visivo
+red_led = pyb.LED(1)
 green_led = pyb.LED(2)
+blue_led = pyb.LED(3)
 
 class CameraDetector:
     def __init__(self, config):
+        print("### INIZIALIZZAZIONE CAMERA DETECTOR SEMPLIFICATO CORRETTO ###")
         self.config = config
-        self.prev_img = None
-        self.prev_pixels = None
+        self.prev_brightness = None
         self.camera_enabled = False
-        self.debug_counter = 0
+        self.frame_count = 0
         
-        # Forza il garbage collection all'avvio
+        # Stampa configurazione
+        print(f"Motion threshold configurato: {self.config.MOTION_THRESHOLD}")
+        
+        # Garbage collection
         gc.collect()
+        print(f"Memoria libera: {gc.mem_free()} bytes")
         
-        # Inizializza la camera per il motion detection
+        # Inizializza la camera
         self.init_camera()
     
     def init_camera(self):
-        """Inizializza la camera per il rilevamento del movimento"""
+        """Inizializza la camera con impostazioni minimali"""
+        print(">> Inizializzazione camera semplificata...")
         try:
+            # Reset completo
             sensor.reset()
-            sensor.set_pixformat(sensor.GRAYSCALE)  # Usa scala di grigi per il motion detection
-            sensor.set_framesize(self.config.FRAME_SIZE)
-            sensor.set_contrast(3)  # Aumenta il contrasto per migliorare il rilevamento movimento
-            sensor.set_brightness(0)
-            sensor.set_saturation(0)
-            sensor.set_auto_gain(False)  # Disabilita auto gain per rilevazione più stabile
-            sensor.set_auto_whitebal(False)  # Disabilita white balance per rilevazione più stabile
-            sensor.set_vflip(False)
-            sensor.set_hmirror(True)
-            sensor.skip_frames(time=500)  # Ridotto per migliorare i tempi di risposta
             
-            # Attendi che la camera si stabilizzi
-            for i in range(5):
-                sensor.snapshot()
-                time.sleep(0.1)
+            # Usa bianco e nero e risoluzione minima
+            sensor.set_pixformat(sensor.GRAYSCALE)
+            sensor.set_framesize(sensor.QQVGA)  # 160x120
+            
+            # Skip frames per stabilizzazione
+            sensor.skip_frames(time=300)
+            
+            # Cattura frame iniziale
+            print(">> Stabilizzazione sensore...")
+            sensor.snapshot()
             
             self.camera_enabled = True
-            logger.info("Camera inizializzata per motion detection")
-            logger.info(f"Dimensione immagine: {sensor.width()}x{sensor.height()}")
+            print(">> Camera inizializzata con successo")
+            
+            # Segnale visivo
+            green_led.on()
+            time.sleep(0.2)
+            green_led.off()
+            
         except Exception as e:
-            logger.error(f"Errore camera motion: {e}")
+            print(f"!!! ERRORE INIZIALIZZAZIONE CAMERA: {e}")
+            logger.error(f"Errore inizializzazione camera: {e}")
     
     def check_motion(self):
-        """Controlla se c'è movimento nell'inquadratura"""
+        """Metodo ultra-semplificato di rilevamento del movimento"""
         if not self.camera_enabled:
             return False
         
         try:
-            # Cattura l'immagine corrente
-            current_img = sensor.snapshot()
+            # Incrementa contatore frame
+            self.frame_count += 1
             
-            # Aumenta il contatore di debug
-            self.debug_counter += 1
+            # Cattura un frame
+            img = sensor.snapshot()
             
-            # Log periodico ogni 50 frame
-            if self.debug_counter % 50 == 0:
-                logger.debug(f"Camera motion check attivo, soglia: {self.config.MOTION_THRESHOLD}%", verbose=True)
+            # Calcolo luminosità media usando l'istogramma
+            # Questo è più affidabile e non ha problemi di tipo
+            hist = img.get_histogram()
+            stats = hist.get_statistics()
+            current_mean = stats.mean()  # Questo sarà sempre un valore numerico singolo
             
-            # Se è il primo frame, memorizza e esci
-            if self.prev_img is None:
-                self.prev_img = current_img.copy()
+            # Debug ogni 20 frame
+            if self.frame_count % 20 == 0:
+                print(f">> Frame #{self.frame_count}, Luminosità media: {current_mean:.2f}")
+            
+            # Se è il primo frame, salva valore e esci
+            if self.prev_brightness is None:
+                self.prev_brightness = current_mean
+                print(f">> Primo frame, luminosità base: {current_mean:.2f}")
                 return False
             
-            # Calcola la differenza tra i frame
-            diff = current_img.difference(self.prev_img)
+            # Calcola differenza di luminosità in percentuale
+            diff = abs(current_mean - self.prev_brightness)
+            diff_percent = (diff / 255) * 100
             
-            # Calcola la percentuale di pixel cambiati
-            stats = diff.get_statistics()
-            diff_percent = (stats.mean() / 255) * 100  # Normalizza in percentuale
+            # Aggiorna valore precedente gradualmente (assicurandoci che sia numerico)
+            # Questo risolve il problema di tipo
+            self.prev_brightness = (self.prev_brightness * 0.7) + (current_mean * 0.3)
             
-            # Aggiorna l'immagine precedente (a intervalli, non sempre)
-            if self.debug_counter % 3 == 0:  # Ogni 3 frame
-                self.prev_img = current_img.copy()
+            # Debug
+            if self.frame_count % 20 == 0:
+                print(f">> Differenza luminosità: {diff_percent:.2f}% (threshold: {self.config.MOTION_THRESHOLD}%)")
+                print(f">> Tipo prev_brightness: {type(self.prev_brightness)}")
             
-            # Verifica se la variazione supera la soglia
+            # Verifica se supera la soglia
             if diff_percent > self.config.MOTION_THRESHOLD:
-                logger.info(f"Movimento rilevato: {diff_percent:.2f}% (soglia: {self.config.MOTION_THRESHOLD}%)")
+                print(f"!!! MOVIMENTO RILEVATO !!! diff: {diff_percent:.2f}%")
+                red_led.on()
+                time.sleep(0.1)
+                red_led.off()
                 return True
                 
         except Exception as e:
-            logger.error(f"Errore motion detection: {e}")
-            # Reset in caso di errore
-            self.prev_img = None
+            print(f"!!! ERRORE MOTION CHECK: {e}")
+            logger.error(f"Errore motion check: {e}")
+            # Importante: reset del valore per sicurezza
+            self.prev_brightness = None
             
         return False
     
     def reset_detection(self):
-        """Resetta il rilevamento del movimento"""
-        self.prev_img = None
-        self.prev_pixels = None
+        """Resetta il rilevamento"""
+        print(">> Reset rilevamento movimento")
+        # Assicuriamoci di resettare correttamente
+        self.prev_brightness = None  # Questo risolve il problema dopo un reset
+        self.frame_count = 0  # Resettiamo anche il contatore frame
         logger.info("Reset rilevamento movimento")
