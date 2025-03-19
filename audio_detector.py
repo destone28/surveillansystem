@@ -74,8 +74,13 @@ class AudioDetector:
                         self.cloud_manager.notify_event("Audio", f"Livello: {int(level)}")
                     
                     # Notifica Telegram se disponibile
-                    if hasattr(self.config, 'telegram_manager') and self.config.telegram_manager:
-                        self.config.telegram_manager.notify_event("Audio", f"Livello: {int(level)}")
+                    if self.telegram_manager:
+                        try:
+                            for chat_id in self.config.TELEGRAM_AUTHORIZED_USERS:
+                                if chat_id != "*":  # Ignora l'asterisco
+                                    self.telegram_manager.send(chat_id, f"🔊 Suono rilevato! Livello: {int(level)}")
+                        except Exception as e:
+                            logger.error(f"Errore notifica Telegram: {e}")
                 
                 green_led.off()
         except Exception as e:

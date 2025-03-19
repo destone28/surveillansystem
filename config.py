@@ -61,26 +61,20 @@ class Config:
     CLOUD_ENABLED = True       # Abilita/disabilita connessione cloud
     
     # Telegram settings
-    TELEGRAM_ENABLED = True    # Abilita/disabilita bot Telegram
-    #TELEGRAM_POLLING_INTERVAL = 1.0 # Intervallo polling in secondi
-    TELEGRAM_NOTIFICATION_COOLDOWN = 5 # Tempo minimo tra notifiche (secondi)
-    #TELEGRAM_SEND_PHOTOS = True     # Invia foto quando viene rilevato qualcosa
+    TELEGRAM_ENABLED = True           # Abilita/disabilita bot Telegram
+    # TELEGRAM_TOKEN e TELEGRAM_AUTHORIZED_USERS da aggiungere in secrets_keys.py
+    
+    # WiFi settings - Presi da secrets.py per compatibilità con TelegramBot
+    WIFI_SSID = "Uaifai"      
+    WIFI_PASS = "#QuestaQui23!" 
     
     # Istanza cloud_manager
     cloud_manager = None
-    
-    # Istanza telegram_bot
-    telegram_bot = None
     
     @classmethod
     def set_cloud_manager(cls, cloud_manager):
         """Imposta il riferimento all'istanza del cloud manager"""
         cls.cloud_manager = cloud_manager
-    
-    @classmethod
-    def set_telegram_bot(cls, telegram_bot):
-        """Imposta il riferimento all'istanza del bot Telegram"""
-        cls.telegram_bot = telegram_bot
         
     @classmethod
     def validate_threshold(cls, value, min_val, max_val, default=None):
