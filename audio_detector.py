@@ -25,6 +25,7 @@ class AudioDetector:
         self.file_manager = file_manager
         self.photo_manager = photo_manager
         self.cloud_manager = None  # Sarà impostato dal main
+        self.telegram_manager = None  # Sarà impostato dal main
         self.audio_enabled = False
         self.last_capture_time = 0
         self.init_audio()
@@ -71,6 +72,10 @@ class AudioDetector:
                     # Notifica cloud se disponibile
                     if self.cloud_manager:
                         self.cloud_manager.notify_event("Audio", f"Livello: {int(level)}")
+                    
+                    # Notifica Telegram se disponibile
+                    if hasattr(self.config, 'telegram_manager') and self.config.telegram_manager:
+                        self.config.telegram_manager.notify_event("Audio", f"Livello: {int(level)}")
                 
                 green_led.off()
         except Exception as e:
@@ -104,3 +109,7 @@ class AudioDetector:
     def set_cloud_manager(self, cloud_manager):
         """Imposta il riferimento al cloud manager"""
         self.cloud_manager = cloud_manager
+
+    def set_telegram_manager(self, telegram_manager):
+        """Imposta il riferimento al telegram manager"""
+        self.telegram_manager = telegram_manager

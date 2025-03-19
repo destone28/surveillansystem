@@ -174,4 +174,4 @@ cython_debug/
 .pypirc
 
 # Secrets credentials
-secrets.py
+secrets_keys.py

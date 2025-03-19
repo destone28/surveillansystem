@@ -1,7 +1,7 @@
 import network
 import time
 from arduino_iot_cloud import ArduinoCloudClient
-from secrets import WIFI_SSID, WIFI_PASS, DEVICE_ID, SECRET_KEY
+from secrets_keys import WIFI_SSID, WIFI_PASS, DEVICE_ID, SECRET_KEY
 import logger
 
 class CloudManager:

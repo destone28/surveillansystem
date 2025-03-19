@@ -21,6 +21,7 @@ class PhotoManager:
         self.file_manager = file_manager
         self.camera_enabled = False
         self.current_mode = None  # Nessuna modalità iniziale
+        self.last_photo_path = None  # Traccia dell'ultima foto salvata
         
         # Tentativo iniziale di inizializzazione della camera
         try:
@@ -117,8 +118,12 @@ class PhotoManager:
             # Salva l'immagine
             success = self.file_manager.save_image(img, filename, self.config.PHOTO_QUALITY)
             
-            # Gestisci la logica FIFO
+            # Salva il percorso dell'ultima foto per riferimento
             if success:
+                self.last_photo_path = filename
+                debug_print(f"Ultimo percorso foto aggiornato: {self.last_photo_path}")
+                
+                # Gestisci la logica FIFO
                 self.file_manager.manage_files(directory, self.config.MAX_IMAGES)
             
             # Spegni il LED rosso
