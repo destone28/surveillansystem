@@ -14,7 +14,8 @@ from distance_detector import DistanceDetector
 from file_manager import FileManager
 from photo_manager import PhotoManager
 from cloud_manager import CloudManager
-from telegram import TelegramBot  # Libreria diretta Telegram
+from telegram import TelegramBot
+from keyboard_manager import KeyboardManager  # Nuovo import per le tastiere
 
 # LED per feedback visivo
 red_led = pyb.LED(1)
@@ -40,7 +41,6 @@ last_cloud_sync_time = 0
 last_distance_recalibration = 0
 main_interval = 100  # Intervallo in millisecondi per l'esecuzione del loop principale
 
-# Callback per il bot Telegram - versione completa con tutte le funzionalità
 def telegram_callback(bot, msg_type, chat_name, sender_name, chat_id, text, entry):
     global cloud_manager
     
@@ -53,151 +53,345 @@ def telegram_callback(bot, msg_type, chat_name, sender_name, chat_id, text, entr
         print(f"Utente non autorizzato: {chat_id}")
         return
     
-    # Elabora i comandi
+    # Gestione delle callback query (pulsanti premuti)
+    if msg_type == "callback_query":
+        # Processa direttamente la callback - non c'è bisogno di rimuovere la tastiera
+        # perché viene fatto automaticamente in send_with_keyboard
+        handle_callback(bot, chat_id, text)
+        return
+    
+    # Elabora i comandi testuali
     try:
         # Comando di avvio
         if text == "/start":
-            bot.send(chat_id, 
-                "🤖 *Benvenuto nel sistema di monitoraggio Nicla Vision!*\n\n"
-                "Puoi controllare il sistema con i seguenti comandi:\n"
-                "/status - Visualizza lo stato del sistema\n"
-                "/enable - Attiva il sistema\n"
-                "/disable - Disattiva il sistema\n"
-                "/help - Mostra tutti i comandi disponibili"
-            )
+            welcome_msg = ("🤖 *Benvenuto nel sistema di monitoraggio Nicla Vision!*\n\n"
+                          "Usa i pulsanti qui sotto per controllare il sistema.")
+            bot.send_with_keyboard(chat_id, welcome_msg, KeyboardManager.get_main_keyboard())
         
         # Comando di aiuto
         elif text == "/help":
-            bot.send(chat_id,
-                "📋 *Comandi disponibili:*\n\n"
-                "/status - Mostra lo stato del sistema\n"
-                "/enable - Attiva il monitoraggio globale\n"
-                "/disable - Disattiva il monitoraggio globale\n"
-                "/camera_on - Attiva il monitoraggio camera\n"
-                "/camera_off - Disattiva il monitoraggio camera\n"
-                "/audio_on - Attiva il monitoraggio audio\n"
-                "/audio_off - Disattiva il monitoraggio audio\n"
-                "/distance_on - Attiva il monitoraggio distanza\n"
-                "/distance_off - Disattiva il monitoraggio distanza\n"
-                "/set_motion_threshold X - Imposta soglia movimento (0.5-50)\n"
-                "/set_audio_threshold X - Imposta soglia audio (500-20000)\n"
-                "/set_distance_threshold X - Imposta soglia distanza (10-2000)"
-            )
-        
-        # Comando di stato
-        elif text == "/status":
-            status_msg = (
-                "📊 *Stato sistema di monitoraggio*\n\n"
-                f"Sistema: {'🟢 Attivo' if Config.GLOBAL_ENABLE else '🔴 Disattivato'}\n"
-                f"Monitoraggio camera: {'🟢 Attivo' if Config.CAMERA_MONITORING_ENABLED else '🔴 Disattivato'}\n"
-                f"Monitoraggio audio: {'🟢 Attivo' if Config.AUDIO_MONITORING_ENABLED else '🔴 Disattivato'}\n"
-                f"Monitoraggio distanza: {'🟢 Attivo' if Config.DISTANCE_MONITORING_ENABLED else '🔴 Disattivato'}\n\n"
-                f"Soglia movimento: {Config.MOTION_THRESHOLD}%\n"
-                f"Soglia audio: {Config.SOUND_THRESHOLD}\n"
-                f"Soglia distanza: {Config.DISTANCE_THRESHOLD}mm\n"
-            )
-            bot.send(chat_id, status_msg)
-        
-        # Attivazione/disattivazione globale
-        elif text == "/enable":
-            if cloud_manager:
-                Config.GLOBAL_ENABLE = True
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, "✅ Sistema di monitoraggio attivato")
-                logger.info("Sistema attivato tramite Telegram")
-            else:
-                bot.send(chat_id, "❌ Impossibile attivare: Cloud manager non disponibile")
-        
-        elif text == "/disable":
-            if cloud_manager:
-                Config.GLOBAL_ENABLE = False
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, "🔴 Sistema di monitoraggio disattivato")
-                logger.info("Sistema disattivato tramite Telegram")
-            else:
-                bot.send(chat_id, "❌ Impossibile disattivare: Cloud manager non disponibile")
-        
-        # Attivazione/disattivazione camera
-        elif text == "/camera_on":
-            if cloud_manager:
-                Config.CAMERA_MONITORING_ENABLED = True
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, "📸 Monitoraggio camera attivato")
-                logger.info("Monitoraggio camera attivato tramite Telegram")
-            else:
-                bot.send(chat_id, "❌ Impossibile attivare camera: Cloud manager non disponibile")
-        
-        elif text == "/camera_off":
-            if cloud_manager:
-                Config.CAMERA_MONITORING_ENABLED = False
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, "🚫 Monitoraggio camera disattivato")
-                logger.info("Monitoraggio camera disattivato tramite Telegram")
-            else:
-                bot.send(chat_id, "❌ Impossibile disattivare camera: Cloud manager non disponibile")
-        
-        # Attivazione/disattivazione audio
-        elif text == "/audio_on":
-            if cloud_manager:
-                Config.AUDIO_MONITORING_ENABLED = True
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, "🎤 Monitoraggio audio attivato")
-                logger.info("Monitoraggio audio attivato tramite Telegram")
-            else:
-                bot.send(chat_id, "❌ Impossibile attivare audio: Cloud manager non disponibile")
-        
-        elif text == "/audio_off":
-            if cloud_manager:
-                Config.AUDIO_MONITORING_ENABLED = False
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, "🚫 Monitoraggio audio disattivato")
-                logger.info("Monitoraggio audio disattivato tramite Telegram")
-            else:
-                bot.send(chat_id, "❌ Impossibile disattivare audio: Cloud manager non disponibile")
-        
-        # Attivazione/disattivazione sensore distanza
-        elif text == "/distance_on":
-            if cloud_manager:
-                Config.DISTANCE_MONITORING_ENABLED = True
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, "📏 Monitoraggio distanza attivato")
-                logger.info("Monitoraggio distanza attivato tramite Telegram")
-            else:
-                bot.send(chat_id, "❌ Impossibile attivare distanza: Cloud manager non disponibile")
-        
-        elif text == "/distance_off":
-            if cloud_manager:
-                Config.DISTANCE_MONITORING_ENABLED = False
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, "🚫 Monitoraggio distanza disattivato")
-                logger.info("Monitoraggio distanza disattivato tramite Telegram")
-            else:
-                bot.send(chat_id, "❌ Impossibile disattivare distanza: Cloud manager non disponibile")
-        
-        # Impostazione soglie
-        elif text.startswith("/set_motion_threshold "):
-            _set_threshold(bot, chat_id, "motion", text)
-        
-        elif text.startswith("/set_audio_threshold "):
-            _set_threshold(bot, chat_id, "audio", text)
-        
-        elif text.startswith("/set_distance_threshold "):
-            _set_threshold(bot, chat_id, "distance", text)
-        
-        # Comando non riconosciuto
-        else:
-            bot.send(chat_id, "❓ Comando non riconosciuto. Usa /help per vedere i comandi disponibili.")
+            help_msg = ("📋 *Comandi disponibili:*\n\n"
+                      "/start - Mostra il menu principale\n"
+                      "/status - Mostra lo stato del sistema\n"
+                      "/enable - Attiva il monitoraggio globale\n"
+                      "/disable - Disattiva il monitoraggio globale\n"
+                      "/camera_on - Attiva il monitoraggio camera\n"
+                      "/camera_off - Disattiva il monitoraggio camera\n"
+                      "/audio_on - Attiva il monitoraggio audio\n"
+                      "/audio_off - Disattiva il monitoraggio audio\n"
+                      "/distance_on - Attiva il monitoraggio distanza\n"
+                      "/distance_off - Disattiva il monitoraggio distanza\n"
+                      "/set_motion_threshold X - Imposta soglia movimento (0.5-50)\n"
+                      "/set_audio_threshold X - Imposta soglia audio (500-20000)\n"
+                      "/set_distance_threshold X - Imposta soglia distanza (10-2000)")
+            bot.send(chat_id, help_msg)
+            
+            # Mostra anche menu principale 
+            bot.send_with_keyboard(chat_id, "Menu principale:", KeyboardManager.get_main_keyboard())
     
-    except Exception as e:
-        logger.error(f"Errore elaborazione comando Telegram: {e}")
-        bot.send(chat_id, f"❌ Errore nell'elaborazione del comando: {e}")
+    except(Exception) as e:
+        print(f"Errore comando Telegram: {e}")
     
     # Feedback visivo
     green_led.on()
     pyb.delay(100)
     green_led.off()
 
-# Funzione per verificare se un utente è autorizzato
+# Funzione per gestire le callback (pulsanti premuti)
+def handle_callback(bot, chat_id, text):
+    """Gestisce tutte le callback dei pulsanti di Telegram"""
+    global cloud_manager
+    
+    try:
+        if text == "back":
+            # Torna al menu principale
+            bot.send_with_keyboard(chat_id, "Menu principale:", KeyboardManager.get_main_keyboard())
+            return
+        
+        # ATTIVAZIONE/DISATTIVAZIONE
+        elif text == "enable":
+            enable_system(bot, chat_id)
+        
+        elif text == "disable":
+            disable_system(bot, chat_id)
+        
+        # STATO
+        elif text == "status":
+            show_status(bot, chat_id)
+        
+        # MENU SENSORI
+        elif text == "sensors":
+            bot.send_with_keyboard(
+                chat_id, 
+                "📹 Menu sensori:", 
+                KeyboardManager.get_sensors_keyboard(
+                    Config.CAMERA_MONITORING_ENABLED,
+                    Config.AUDIO_MONITORING_ENABLED,
+                    Config.DISTANCE_MONITORING_ENABLED
+                )
+            )
+        
+        # MENU IMPOSTAZIONI
+        elif text == "settings":
+            bot.send_with_keyboard(chat_id, "⚙️ Menu impostazioni:", KeyboardManager.get_settings_keyboard())
+        
+        # TOGGLE SENSORI
+        elif text == "camera":
+            toggle_camera(bot, chat_id, not Config.CAMERA_MONITORING_ENABLED)
+            
+        elif text == "audio":
+            toggle_audio(bot, chat_id, not Config.AUDIO_MONITORING_ENABLED)
+            
+        elif text == "distance":
+            toggle_distance(bot, chat_id, not Config.DISTANCE_MONITORING_ENABLED)
+        
+        # SOGLIE
+        elif text == "motion_threshold":
+            bot.send(chat_id, f"Soglia movimento attuale: {Config.MOTION_THRESHOLD}%\n\nInvia /set_motion_threshold X (dove X è un valore tra {Config.MOTION_THRESHOLD_MIN} e {Config.MOTION_THRESHOLD_MAX})")
+            bot.send_with_keyboard(
+                chat_id,
+                "⬅️ Torna al menu impostazioni:",
+                KeyboardManager.get_settings_keyboard()
+            )
+        
+        elif text == "audio_threshold":
+            bot.send(chat_id, f"Soglia audio attuale: {Config.SOUND_THRESHOLD}\n\nInvia /set_audio_threshold X (dove X è un valore tra {Config.SOUND_THRESHOLD_MIN} e {Config.SOUND_THRESHOLD_MAX})")
+            bot.send_with_keyboard(
+                chat_id,
+                "⬅️ Torna al menu impostazioni:",
+                KeyboardManager.get_settings_keyboard()
+            )
+        
+        elif text == "distance_threshold":
+            bot.send(chat_id, f"Soglia distanza attuale: {Config.DISTANCE_THRESHOLD}mm\n\nInvia /set_distance_threshold X (dove X è un valore tra {Config.DISTANCE_THRESHOLD_MIN} e {Config.DISTANCE_THRESHOLD_MAX})")
+            bot.send_with_keyboard(
+                chat_id,
+                "⬅️ Torna al menu impostazioni:",
+                KeyboardManager.get_settings_keyboard()
+            )
+            
+        elif text == "inhibit_threshold":
+            bot.send(chat_id, f"Periodo inibizione attuale: {Config.INHIBIT_PERIOD}s\n\nInvia /set_inhibit_period X (dove X è un valore tra {Config.INHIBIT_PERIOD_MIN} e {Config.INHIBIT_PERIOD_MAX})")
+            bot.send_with_keyboard(
+                chat_id,
+                "⬅️ Torna al menu impostazioni:",
+                KeyboardManager.get_settings_keyboard()
+            )
+        
+        # Gestione incremento/decremento soglie
+        elif text.startswith("inc_") or text.startswith("dec_"):
+            handle_threshold_change(bot, chat_id, text)
+        
+        else:
+            # Comando sconosciuto
+            bot.send_with_keyboard(chat_id, "⚠️ Comando non riconosciuto. Ecco il menu principale:", KeyboardManager.get_main_keyboard())
+    
+    except Exception as e:
+        logger.error(f"Errore gestione callback: {e}")
+        bot.send(chat_id, f"❌ Errore: {e}")
+        # Torna al menu principale in caso di errore
+        bot.send_with_keyboard(chat_id, "🔄 Menu principale:", KeyboardManager.get_main_keyboard())
+
+# Funzioni di supporto per le azioni
+def show_status(bot, chat_id):
+    """Mostra lo stato del sistema"""
+    status_msg = (
+        "📊 *Stato sistema di monitoraggio*\n\n"
+        f"Sistema: {'🟢 Attivo' if Config.GLOBAL_ENABLE else '🔴 Disattivato'}\n"
+        f"Monitoraggio camera: {'🟢 Attivo' if Config.CAMERA_MONITORING_ENABLED else '🔴 Disattivato'}\n"
+        f"Monitoraggio audio: {'🟢 Attivo' if Config.AUDIO_MONITORING_ENABLED else '🔴 Disattivato'}\n"
+        f"Monitoraggio distanza: {'🟢 Attivo' if Config.DISTANCE_MONITORING_ENABLED else '🔴 Disattivato'}\n\n"
+        f"Soglia movimento: {Config.MOTION_THRESHOLD}%\n"
+        f"Soglia audio: {Config.SOUND_THRESHOLD}\n"
+        f"Soglia distanza: {Config.DISTANCE_THRESHOLD}mm\n"
+        f"Periodo inibizione: {Config.INHIBIT_PERIOD}s"
+    )
+    bot.send_with_keyboard(chat_id, status_msg, KeyboardManager.get_main_keyboard())
+
+def enable_system(bot, chat_id):
+    """Attiva il sistema globalmente"""
+    global cloud_manager
+    if cloud_manager:
+        Config.GLOBAL_ENABLE = True
+        cloud_manager.sync_to_cloud()
+        bot.send_with_keyboard(chat_id, "✅ Sistema di monitoraggio attivato", KeyboardManager.get_main_keyboard())
+        logger.info("Sistema attivato tramite Telegram")
+    else:
+        bot.send_with_keyboard(chat_id, "❌ Impossibile attivare: Cloud manager non disponibile", KeyboardManager.get_main_keyboard())
+
+def disable_system(bot, chat_id):
+    """Disattiva il sistema globalmente"""
+    global cloud_manager
+    if cloud_manager:
+        Config.GLOBAL_ENABLE = False
+        cloud_manager.sync_to_cloud()
+        bot.send_with_keyboard(chat_id, "🔴 Sistema di monitoraggio disattivato", KeyboardManager.get_main_keyboard())
+        logger.info("Sistema disattivato tramite Telegram")
+    else:
+        bot.send_with_keyboard(chat_id, "❌ Impossibile disattivare: Cloud manager non disponibile", KeyboardManager.get_main_keyboard())
+
+def toggle_camera(bot, chat_id, enable):
+    """Attiva/disattiva il monitoraggio della camera"""
+    global cloud_manager
+    if cloud_manager:
+        Config.CAMERA_MONITORING_ENABLED = enable
+        cloud_manager.sync_to_cloud()
+        status = "attivato" if enable else "disattivato"
+        bot.send_with_keyboard(
+            chat_id, 
+            f"📸 Monitoraggio camera {status}", 
+            KeyboardManager.get_sensors_keyboard(
+                Config.CAMERA_MONITORING_ENABLED,
+                Config.AUDIO_MONITORING_ENABLED,
+                Config.DISTANCE_MONITORING_ENABLED
+            )
+        )
+        logger.info(f"Monitoraggio camera {status} tramite Telegram")
+    else:
+        bot.send_with_keyboard(
+            chat_id, 
+            "❌ Impossibile modificare: Cloud manager non disponibile", 
+            KeyboardManager.get_sensors_keyboard(
+                Config.CAMERA_MONITORING_ENABLED,
+                Config.AUDIO_MONITORING_ENABLED,
+                Config.DISTANCE_MONITORING_ENABLED
+            )
+        )
+
+def toggle_audio(bot, chat_id, enable):
+    """Attiva/disattiva il monitoraggio audio"""
+    global cloud_manager
+    if cloud_manager:
+        Config.AUDIO_MONITORING_ENABLED = enable
+        cloud_manager.sync_to_cloud()
+        status = "attivato" if enable else "disattivato"
+        bot.send_with_keyboard(
+            chat_id, 
+            f"🎤 Monitoraggio audio {status}", 
+            KeyboardManager.get_sensors_keyboard(
+                Config.CAMERA_MONITORING_ENABLED,
+                Config.AUDIO_MONITORING_ENABLED,
+                Config.DISTANCE_MONITORING_ENABLED
+            )
+        )
+        logger.info(f"Monitoraggio audio {status} tramite Telegram")
+    else:
+        bot.send_with_keyboard(
+            chat_id, 
+            "❌ Impossibile modificare: Cloud manager non disponibile", 
+            KeyboardManager.get_sensors_keyboard(
+                Config.CAMERA_MONITORING_ENABLED,
+                Config.AUDIO_MONITORING_ENABLED,
+                Config.DISTANCE_MONITORING_ENABLED
+            )
+        )
+
+def toggle_distance(bot, chat_id, enable):
+    """Attiva/disattiva il monitoraggio della distanza"""
+    global cloud_manager
+    if cloud_manager:
+        Config.DISTANCE_MONITORING_ENABLED = enable
+        cloud_manager.sync_to_cloud()
+        status = "attivato" if enable else "disattivato"
+        bot.send_with_keyboard(
+            chat_id, 
+            f"📏 Monitoraggio distanza {status}", 
+            KeyboardManager.get_sensors_keyboard(
+                Config.CAMERA_MONITORING_ENABLED,
+                Config.AUDIO_MONITORING_ENABLED,
+                Config.DISTANCE_MONITORING_ENABLED
+            )
+        )
+        logger.info(f"Monitoraggio distanza {status} tramite Telegram")
+    else:
+        bot.send_with_keyboard(
+            chat_id, 
+            "❌ Impossibile modificare: Cloud manager non disponibile", 
+            KeyboardManager.get_sensors_keyboard(
+                Config.CAMERA_MONITORING_ENABLED,
+                Config.AUDIO_MONITORING_ENABLED,
+                Config.DISTANCE_MONITORING_ENABLED
+            )
+        )
+
+def handle_threshold_change(bot, chat_id, callback_data):
+    """Gestisce i cambiamenti di soglia tramite i pulsanti + e -"""
+    global cloud_manager
+    
+    try:
+        # Parse del callback_data (es. "inc_motion_1" o "dec_audio_500")
+        parts = callback_data.split("_")
+        operation = parts[0]  # "inc" o "dec"
+        threshold_type = parts[1]  # "motion", "audio", "distance", "inhibit"
+        step = float(parts[2]) if len(parts) > 2 else 1  # incremento/decremento
+        
+        # Ottieni il valore attuale
+        current_value = None
+        min_value = None
+        max_value = None
+        
+        if threshold_type == "motion":
+            current_value = Config.MOTION_THRESHOLD
+            min_value = Config.MOTION_THRESHOLD_MIN
+            max_value = Config.MOTION_THRESHOLD_MAX
+        elif threshold_type == "audio":
+            current_value = Config.SOUND_THRESHOLD
+            min_value = Config.SOUND_THRESHOLD_MIN
+            max_value = Config.SOUND_THRESHOLD_MAX
+        elif threshold_type == "distance":
+            current_value = Config.DISTANCE_THRESHOLD
+            min_value = Config.DISTANCE_THRESHOLD_MIN
+            max_value = Config.DISTANCE_THRESHOLD_MAX
+        elif threshold_type == "inhibit":
+            current_value = Config.INHIBIT_PERIOD
+            min_value = Config.INHIBIT_PERIOD_MIN
+            max_value = Config.INHIBIT_PERIOD_MAX
+        
+        # Calcola il nuovo valore
+        if operation == "inc":
+            new_value = min(current_value + step, max_value)
+        else:  # "dec"
+            new_value = max(current_value - step, min_value)
+        
+        # Aggiorna il valore nella configurazione
+        if threshold_type == "motion":
+            Config.MOTION_THRESHOLD = new_value
+            if cloud_manager:
+                cloud_manager.client["motion_threshold"] = int(new_value)
+                cloud_manager.client.update()
+        elif threshold_type == "audio":
+            Config.SOUND_THRESHOLD = new_value
+            if cloud_manager:
+                cloud_manager.client["sound_threshold"] = int(new_value)
+                cloud_manager.client.update()
+        elif threshold_type == "distance":
+            Config.DISTANCE_THRESHOLD = new_value
+            if cloud_manager:
+                cloud_manager.client["distance_threshold"] = int(new_value)
+                cloud_manager.client.update()
+        elif threshold_type == "inhibit":
+            Config.INHIBIT_PERIOD = new_value
+            if cloud_manager:
+                cloud_manager.client["inhibit_period"] = int(new_value)
+                cloud_manager.client.update()
+        
+        # Aggiorna la tastiera dei settaggi per maggiore semplicità
+        bot.send_with_keyboard(
+            chat_id, 
+            f"✅ Valore aggiornato a {new_value}",
+            KeyboardManager.get_settings_keyboard()
+        )
+        
+        # Log
+        logger.info(f"Soglia {threshold_type} modificata a {new_value} tramite Telegram")
+        
+    except Exception as e:
+        logger.error(f"Errore modifica soglia: {e}")
+        bot.send(chat_id, f"❌ Errore modifica soglia: {e}")
+        # Torna al menu impostazioni
+        bot.send_with_keyboard(chat_id, "⚙️ Menu impostazioni:", KeyboardManager.get_settings_keyboard())
+
+# Funzione per verificare se un utente è autorizzato (stessa di prima)
 def _is_authorized(chat_id):
     # Se la lista è vuota o contiene l'asterisco, tutti sono autorizzati
     if not secrets_keys.TELEGRAM_AUTHORIZED_USERS or "*" in secrets_keys.TELEGRAM_AUTHORIZED_USERS:
@@ -206,7 +400,7 @@ def _is_authorized(chat_id):
     # Altrimenti verifica se l'ID è nella lista
     return str(chat_id) in secrets_keys.TELEGRAM_AUTHORIZED_USERS
 
-# Funzione per impostare le soglie
+# Funzione per impostare le soglie (stessa di prima)
 def _set_threshold(bot, chat_id, threshold_type, command):
     global cloud_manager
     
@@ -225,8 +419,16 @@ def _set_threshold(bot, chat_id, threshold_type, command):
                 )
                 
                 Config.MOTION_THRESHOLD = validated
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, f"📊 Soglia movimento impostata a {validated}%")
+                
+                # Invia direttamente al cloud con conversione in intero
+                cloud_manager.client["motion_threshold"] = int(validated)
+                cloud_manager.client.update()
+                
+                bot.send_with_keyboard(
+                    chat_id, 
+                    f"📊 Soglia movimento impostata a {validated}%",
+                    KeyboardManager.get_settings_keyboard()
+                )
                 logger.info(f"Soglia movimento modificata a {validated}% tramite Telegram")
             
             elif threshold_type == "audio":
@@ -239,8 +441,16 @@ def _set_threshold(bot, chat_id, threshold_type, command):
                 )
                 
                 Config.SOUND_THRESHOLD = validated
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, f"🔊 Soglia audio impostata a {validated}")
+                
+                # Invia direttamente al cloud con conversione in intero
+                cloud_manager.client["sound_threshold"] = int(validated)
+                cloud_manager.client.update()
+                
+                bot.send_with_keyboard(
+                    chat_id, 
+                    f"🔊 Soglia audio impostata a {validated}",
+                    KeyboardManager.get_settings_keyboard()
+                )
                 logger.info(f"Soglia audio modificata a {validated} tramite Telegram")
             
             elif threshold_type == "distance":
@@ -253,19 +463,43 @@ def _set_threshold(bot, chat_id, threshold_type, command):
                 )
                 
                 Config.DISTANCE_THRESHOLD = validated
-                cloud_manager.sync_to_cloud()
-                bot.send(chat_id, f"📏 Soglia distanza impostata a {validated}mm")
+                
+                # Invia direttamente al cloud con conversione in intero
+                cloud_manager.client["distance_threshold"] = int(validated)
+                cloud_manager.client.update()
+                
+                bot.send_with_keyboard(
+                    chat_id, 
+                    f"📏 Soglia distanza impostata a {validated}mm",
+                    KeyboardManager.get_settings_keyboard()
+                )
                 logger.info(f"Soglia distanza modificata a {validated}mm tramite Telegram")
             
             else:
-                bot.send(chat_id, "❌ Tipo di soglia non valido")
+                bot.send_with_keyboard(
+                    chat_id, 
+                    "❌ Tipo di soglia non valido",
+                    KeyboardManager.get_settings_keyboard()
+                )
         else:
-            bot.send(chat_id, "❌ Impossibile impostare soglia: Cloud manager non disponibile")
+            bot.send_with_keyboard(
+                chat_id, 
+                "❌ Impossibile impostare soglia: Cloud manager non disponibile",
+                KeyboardManager.get_settings_keyboard()
+            )
     except ValueError:
-        bot.send(chat_id, "❌ Valore non valido. Usa un numero.")
+        bot.send_with_keyboard(
+            chat_id, 
+            "❌ Valore non valido. Usa un numero.",
+            KeyboardManager.get_settings_keyboard()
+        )
     except Exception as e:
         logger.error(f"Errore impostazione soglia {threshold_type}: {e}")
-        bot.send(chat_id, f"❌ Errore impostazione soglia: {e}")
+        bot.send_with_keyboard(
+            chat_id, 
+            f"❌ Errore impostazione soglia: {e}",
+            KeyboardManager.get_settings_keyboard()
+        )
 
 # Task asincrono che esegue il loop principale
 async def main_loop():
@@ -478,12 +712,18 @@ def main():
         # Avvia il task del loop principale
         asyncio.create_task(main_loop())
         
-        # Avvio del bot Telegram esattamente come in example.py
+        # Avvio del bot Telegram con le nuove tastiere
         if hasattr(Config, 'TELEGRAM_ENABLED') and Config.TELEGRAM_ENABLED:
             try:
                 print("Inizializzazione bot Telegram...")
                 telegram_bot = TelegramBot(secrets_keys.TELEGRAM_TOKEN, telegram_callback)
                 telegram_bot.debug = True  # Attiva debug
+                
+                # Forza il reset delle variabili interne del bot
+                telegram_bot.rbuf_used = 0
+                telegram_bot.pending = False
+                telegram_bot.reconnect = True
+                telegram_bot.offset = 0
                 
                 print("Connessione WiFi per Telegram...")
                 try:
@@ -492,7 +732,11 @@ def main():
                     print(f"Errore WiFi (potrebbe essere già connesso): {e}")
                 
                 print("Avvio bot Telegram...")
-                asyncio.create_task(telegram_bot.run())
+                time.sleep(0.5)  # Pausa prima di avviare il task
+                bot_task = asyncio.create_task(telegram_bot.run())
+                
+                # Attendi un po' per dare tempo al bot di inizializzarsi
+                time.sleep(1)
                 
                 # Segnala avvio Telegram completo con LED
                 for _ in range(3):
@@ -507,17 +751,25 @@ def main():
                 for chat_id in secrets_keys.TELEGRAM_AUTHORIZED_USERS:
                     if chat_id != "*":  # Ignora l'asterisco
                         try:
-                            telegram_bot.send(chat_id, "🟢 Sistema di monitoraggio Nicla Vision avviato e pronto!")
+                            # Assicurati che non ci siano richieste pendenti
+                            while telegram_bot.pending:
+                                time.sleep(0.1)
+                            
+                            telegram_bot.send_with_keyboard(
+                                chat_id, 
+                                "🟢 Sistema di monitoraggio Nicla Vision avviato e pronto!",
+                                KeyboardManager.get_main_keyboard()
+                            )
                         except Exception as e:
                             print(f"Errore invio messaggio a {chat_id}: {e}")
                 
             except Exception as e:
                 print(f"Errore inizializzazione Telegram: {e}")
-        
-        print("Sistema avviato, in attesa di messaggi...")
-        
-        # Esegui il loop forever come in example.py
-        loop.run_forever()
+            
+            print("Sistema avviato, in attesa di messaggi...")
+            
+            # Esegui il loop forever come in example.py
+            loop.run_forever()
         
     except Exception as e:
         # Per errori fatali, stampa anche su console standard
