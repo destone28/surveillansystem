@@ -111,6 +111,12 @@ class CloudManager:
             self.client.register("current_video", value="")
             self.client.register("event_type", value="")
             self.client.register("video_list", value="[]")
+
+            # Registrazione video
+            self.client.register("record_video_enabled", value=self.config.RECORD_VIDEO_ENABLED, 
+                            on_write=self._on_record_video_enabled_change)
+            self.client.register("send_videos_telegram", value=self.config.SEND_VIDEOS_TELEGRAM, 
+                            on_write=self._on_send_videos_telegram_change)
             
             logger.info("Variabili cloud registrate", cloud=False)
             return True
@@ -188,6 +194,10 @@ class CloudManager:
                     self.config.INHIBIT_PERIOD_MAX,
                     self.config.INHIBIT_PERIOD
                 )
+
+                # Impostazioni video
+                self.config.RECORD_VIDEO_ENABLED = self.client["record_video_enabled"]
+                self.config.SEND_VIDEOS_TELEGRAM = self.client["send_videos_telegram"]
                 
                 # logger.info(f"Stato sincronizzato dal cloud: Global={self.config.GLOBAL_ENABLE}, Camera={self.config.CAMERA_MONITORING_ENABLED}, Audio={self.config.AUDIO_MONITORING_ENABLED}, Distance={self.config.DISTANCE_MONITORING_ENABLED}")
                 return True
@@ -221,6 +231,8 @@ class CloudManager:
                 self.client["video_fps"] = self.config.VIDEO_FPS
                 self.client["video_quality"] = self.config.VIDEO_QUALITY
                 self.client["inhibit_period"] = self.config.INHIBIT_PERIOD
+                self.client["record_video_enabled"] = self.config.RECORD_VIDEO_ENABLED
+                self.client["send_videos_telegram"] = self.config.SEND_VIDEOS_TELEGRAM
                 
                 # Aggiorna lo stato del sistema
                 status_msg = f"Sistema {'attivo' if self.config.GLOBAL_ENABLE else 'disattivato'} | Camera: {'ON' if self.config.CAMERA_MONITORING_ENABLED else 'OFF'} | Audio: {'ON' if self.config.AUDIO_MONITORING_ENABLED else 'OFF'} | Distance: {'ON' if self.config.DISTANCE_MONITORING_ENABLED else 'OFF'}"
@@ -366,6 +378,26 @@ class CloudManager:
         self.config.VIDEO_QUALITY = value
         logger.info(f"Video quality cambiato a {value}")
         client.update()  # Aggiornamento necessario in modalità sincrona
+
+    def _on_record_video_enabled_change(self, client, value):
+        """Callback quando l'impostazione di registrazione video cambia"""
+        self.config.RECORD_VIDEO_ENABLED = value
+        logger.info(f"Registrazione video {'attivata' if value else 'disattivata'}")
+        client["system_status"] = f"Registrazione video {'attivata' if value else 'disattivata'}"
+        client.update()  # Aggiornamento necessario in modalità sincrona
+        
+        # Sincronizza lo stato completo nel cloud
+        self.sync_to_cloud()
+
+    def _on_send_videos_telegram_change(self, client, value):
+        """Callback quando l'impostazione di invio video su Telegram cambia"""
+        self.config.SEND_VIDEOS_TELEGRAM = value
+        logger.info(f"Invio video Telegram {'attivato' if value else 'disattivato'}")
+        client["system_status"] = f"Invio video Telegram {'attivato' if value else 'disattivato'}"
+        client.update()  # Aggiornamento necessario in modalità sincrona
+        
+        # Sincronizza lo stato completo nel cloud
+        self.sync_to_cloud()
     
     def start(self):
         """Avvia la connessione al cloud"""

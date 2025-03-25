@@ -15,6 +15,7 @@ from file_manager import FileManager
 from photo_manager import PhotoManager
 from cloud_manager import CloudManager
 from telegram import TelegramBot  # Libreria diretta Telegram
+from video_manager import VideoManager  # Nuovo import per gestione video
 
 # LED per feedback visivo
 red_led = pyb.LED(1)
@@ -29,6 +30,7 @@ cloud_manager = None
 photo_manager = None
 file_manager = None
 telegram_bot = None
+video_manager = None  # Nuova variabile per gestione video
 loop = None
 
 # Variabili di controllo ciclo
@@ -82,12 +84,15 @@ def telegram_callback(bot, msg_type, chat_name, sender_name, chat_id, text, entr
                 "/photo - Scatta una foto istantanea\n"
                 "/photos_on - Attiva l'invio automatico delle foto\n"
                 "/photos_off - Disattiva l'invio automatico delle foto\n"
+                "/video - Registra un video istantaneo\n"
+                "/videos_on - Attiva la registrazione video automatica\n"
+                "/videos_off - Disattiva la registrazione video automatica\n"
                 "/set_motion_threshold X - Imposta soglia movimento (0.5-50)\n"
                 "/set_audio_threshold X - Imposta soglia audio (500-20000)\n"
                 "/set_distance_threshold X - Imposta soglia distanza (10-2000)"
             )
 
-        # Comando di stato aggiornato per includere lo stato dell'invio foto
+        # Comando di stato aggiornato per includere lo stato dell'invio foto e video
         elif text == "/status":
             status_msg = (
                 "📊 *Stato sistema di monitoraggio*\n\n"
@@ -95,7 +100,8 @@ def telegram_callback(bot, msg_type, chat_name, sender_name, chat_id, text, entr
                 f"Monitoraggio camera: {'🟢 Attivo' if Config.CAMERA_MONITORING_ENABLED else '🔴 Disattivato'}\n"
                 f"Monitoraggio audio: {'🟢 Attivo' if Config.AUDIO_MONITORING_ENABLED else '🔴 Disattivato'}\n"
                 f"Monitoraggio distanza: {'🟢 Attivo' if Config.DISTANCE_MONITORING_ENABLED else '🔴 Disattivato'}\n"
-                f"Invio automatico foto: {'🟢 Attivo' if Config.SEND_PHOTOS_TELEGRAM else '🔴 Disattivato'}\n\n"
+                f"Invio automatico foto: {'🟢 Attivo' if Config.SEND_PHOTOS_TELEGRAM else '🔴 Disattivato'}\n"
+                f"Registrazione video: {'🟢 Attiva' if Config.RECORD_VIDEO_ENABLED else '🔴 Disattivata'}\n\n"
                 f"Soglia movimento: {Config.MOTION_THRESHOLD}%\n"
                 f"Soglia audio: {Config.SOUND_THRESHOLD}\n"
                 f"Soglia distanza: {Config.DISTANCE_THRESHOLD}mm\n"
@@ -225,6 +231,44 @@ def telegram_callback(bot, msg_type, chat_name, sender_name, chat_id, text, entr
             logger.info(f"Invio automatico foto disattivato da chat_id {chat_id}")
             if cloud_manager:
                 cloud_manager.sync_to_cloud()
+                
+        # Comandi per la gestione video
+        elif text == "/videos_on":
+            Config.RECORD_VIDEO_ENABLED = True
+            bot.send(chat_id, "✅ Registrazione video attivata")
+            logger.info(f"Registrazione video attivata da chat_id {chat_id}")
+            if cloud_manager:
+                cloud_manager.sync_to_cloud()
+
+        elif text == "/videos_off":
+            Config.RECORD_VIDEO_ENABLED = False
+            bot.send(chat_id, "🚫 Registrazione video disattivata")
+            logger.info(f"Registrazione video disattivata da chat_id {chat_id}")
+            if cloud_manager:
+                cloud_manager.sync_to_cloud()
+
+        elif text == "/video":
+            bot.send(chat_id, "🎥 Avvio registrazione video istantanea...")
+            try:
+                if video_manager and video_manager.record_video("manual"):
+                    video_path = video_manager.last_video_path
+                    logger.info(f"Video istantaneo registrato: {video_path}")
+                    
+                    bot.send(chat_id, "✅ Video registrato con successo! Invio in corso...")
+                    
+                    # Invia il video
+                    success = bot.send_video(chat_id, video_path, "🎥 Video istantaneo richiesto via Telegram")
+                    
+                    if success:
+                        logger.info(f"Video istantaneo inviato a chat_id {chat_id}")
+                    else:
+                        logger.error("Errore nell'invio del video")
+                        bot.send(chat_id, "⚠️ Problemi nell'invio del video, ma la registrazione è stata completata")
+                else:
+                    bot.send(chat_id, "❌ Errore: impossibile registrare il video")
+            except Exception as e:
+                logger.error(f"Errore video istantaneo: {e}")
+                bot.send(chat_id, f"❌ Errore durante la registrazione del video: {e}")
 
         # Comando non riconosciuto
         else:
@@ -314,7 +358,7 @@ async def main_loop():
     global camera_detector, audio_detector, distance_detector
     global cloud_manager, last_motion_time, last_distance_time
     global last_sync_time, last_check_state_time, last_cloud_sync_time
-    global last_distance_recalibration
+    global last_distance_recalibration, video_manager
 
     print("Avvio loop principale...")
 
@@ -362,6 +406,8 @@ async def main_loop():
                                 audio_detector.set_cloud_manager(cloud_manager)
                             if telegram_bot:
                                 audio_detector.set_telegram_manager(telegram_bot)
+                            if video_manager:  # Aggiunta riferimento al video manager
+                                audio_detector.set_video_manager(video_manager)
                             logger.info("Rilevatore audio inizializzato e avviato (on-demand)")
                     else:
                         if audio_detector:
@@ -400,7 +446,7 @@ async def main_loop():
                     if distance_detector:
                         distance_detector = None
                         logger.info("Rilevatore distanza disattivato (global disable)")
-
+            
             # SEZIONE RILEVAMENTO EVENTI
             # Per il rilevamento del movimento della camera
             if Config.CAMERA_MONITORING_ENABLED and camera_detector:
@@ -432,6 +478,25 @@ async def main_loop():
                             # Notifica cloud
                             if cloud_manager:
                                 cloud_manager.notify_event("Motion", "Camera trigger")
+
+                            # Registrazione video se abilitata
+                            if Config.RECORD_VIDEO_ENABLED:
+                                if video_manager.record_video("camera"):
+                                    video_path = video_manager.last_video_path
+                                    
+                                    # Notifica Telegram
+                                    if telegram_bot and Config.SEND_VIDEOS_TELEGRAM:
+                                        try:
+                                            for chat_id in secrets_keys.TELEGRAM_AUTHORIZED_USERS:
+                                                if chat_id != "*":  # Ignora l'asterisco
+                                                    telegram_bot.send(chat_id, "🎥 Registrazione video movimento completata!")
+                                                    telegram_bot.send_video(
+                                                        chat_id,
+                                                        video_path,
+                                                        "🎥 Video rilevamento movimento"
+                                                    )
+                                        except Exception as e:
+                                            logger.error(f"Errore invio video Telegram: {e}")
 
                             # Notifica Telegram con testo E foto
                             if telegram_bot:
@@ -480,6 +545,25 @@ async def main_loop():
                             if cloud_manager:
                                 cloud_manager.notify_event("Distance", f"Distanza: {int(current_distance)}mm")
 
+                            # Registrazione video se abilitata
+                            if Config.RECORD_VIDEO_ENABLED:
+                                if video_manager.record_video("distance", f"dist_{int(current_distance)}"):
+                                    video_path = video_manager.last_video_path
+                                    
+                                    # Notifica Telegram
+                                    if telegram_bot and Config.SEND_VIDEOS_TELEGRAM:
+                                        try:
+                                            for chat_id in secrets_keys.TELEGRAM_AUTHORIZED_USERS:
+                                                if chat_id != "*":  # Ignora l'asterisco
+                                                    telegram_bot.send(chat_id, "🎥 Registrazione video distanza completata!")
+                                                    telegram_bot.send_video(
+                                                        chat_id,
+                                                        video_path,
+                                                        f"🎥 Video variazione distanza: {int(current_distance)}mm"
+                                                    )
+                                        except Exception as e:
+                                            logger.error(f"Errore invio video Telegram: {e}")
+
                             # Notifica Telegram
                             if telegram_bot:
                                 try:
@@ -514,7 +598,7 @@ async def main_loop():
 
 def main():
     global camera_detector, audio_detector, distance_detector
-    global cloud_manager, photo_manager, file_manager, telegram_bot, loop
+    global cloud_manager, photo_manager, file_manager, telegram_bot, video_manager, loop
 
     try:
         # Pulisci la memoria all'avvio
@@ -550,6 +634,9 @@ def main():
 
         # Inizializza il photo manager (gestore foto) comunque
         photo_manager = PhotoManager(Config, file_manager)
+        
+        # Inizializza il video manager
+        video_manager = VideoManager(Config, file_manager)
 
         # Segnala avvio con LED blu
         blue_led.on()
@@ -559,21 +646,19 @@ def main():
         # Avvia il task del loop principale
         asyncio.create_task(main_loop())
 
-        # Avvio del bot Telegram esattamente come in example.py
+        # Avvio del bot Telegram
         if hasattr(Config, 'TELEGRAM_ENABLED') and Config.TELEGRAM_ENABLED:
             try:
                 print("Inizializzazione bot Telegram...")
                 telegram_bot = TelegramBot(secrets_keys.TELEGRAM_TOKEN, telegram_callback)
                 telegram_bot.debug = False  # Attiva debug
 
-                print("Connessione WiFi per Telegram...")
-                try:
-                    telegram_bot.connect_wifi(Config.WIFI_SSID, Config.WIFI_PASS)
-                except Exception as e:
-                    print(f"Errore WiFi (potrebbe essere già connesso): {e}")
-
                 print("Avvio bot Telegram...")
                 asyncio.create_task(telegram_bot.run())
+                
+                # Imposta il riferimento al telegram manager nel video manager
+                if video_manager:
+                    video_manager.set_telegram_manager(telegram_bot)
 
                 # Segnala avvio Telegram completo con LED
                 for _ in range(3):
@@ -630,3 +715,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
