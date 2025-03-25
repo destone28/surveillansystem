@@ -10,45 +10,45 @@ class DistanceDetector:
         self.tof = None
         self.base_distance = None
         self.distance_enabled = False
-        self.last_distances = []  # Buffer per media mobile
+        self.last_distances = []  # Buffer for moving average
         self.debug_counter = 0
         
         self.init_distance_sensor()
         
     def init_distance_sensor(self):
-        """Inizializza il sensore di distanza ToF VL53L1X"""
-        logger.info("Inizializzazione sensore distanza ToF...")
+        """Initializes the ToF distance sensor VL53L1X"""
+        logger.info("Initializing ToF distance sensor...")
         
         try:
-            # Inizializza l'I2C
+            # Initialize I2C
             i2c = I2C(2)
-            time.sleep(0.1)  # Breve pausa dopo inizializzazione I2C
+            time.sleep(0.1)  # Short pause after I2C initialization
             
-            # Inizializza il sensore
+            # Initialize the sensor
             self.tof = VL53L1X(i2c)
-            time.sleep(0.5)  # Pausa per stabilizzazione
+            time.sleep(0.5)  # Pause for stabilization
             
-            # Imposta la modalità di misurazione a lungo raggio
+            # Set the measurement mode to long range
             if hasattr(self.tof, 'set_measurement_timing_budget'):
-                self.tof.set_measurement_timing_budget(50000)  # Usa 50ms per maggiore precisione
+                self.tof.set_measurement_timing_budget(50000)  # Use 50ms for higher accuracy
             
-            # Calibrazione iniziale: letture multiple
+            # Initial calibration: multiple readings
             self.calibrate_distance()
             
             if self.base_distance > 0:
                 self.distance_enabled = True
-                logger.info(f"Sensore ToF inizializzato: {self.base_distance}mm")
+                logger.info(f"ToF sensor initialized: {self.base_distance}mm")
             else:
-                logger.error("Errore lettura distanza iniziale dal sensore ToF")
+                logger.error("Error reading initial distance from ToF sensor")
         except Exception as e:
-            logger.error(f"Errore inizializzazione sensore ToF: {e}")
+            logger.error(f"Error initializing ToF sensor: {e}")
             
     def calibrate_distance(self):
-        """Calibra la distanza base con media di multiple letture"""
+        """Calibrates the base distance with the average of multiple readings"""
         readings = []
         valid_readings = 0
         
-        # Effettua 5 letture per una calibrazione stabile
+        # Perform 5 readings for stable calibration
         for i in range(5):
             dist = self.read_distance_raw()
             if dist > 0:
@@ -56,80 +56,80 @@ class DistanceDetector:
                 valid_readings += 1
             time.sleep(0.1)
         
-        # Calcola la media delle letture valide
+        # Calculate the average of valid readings
         if valid_readings > 0:
             self.base_distance = sum(readings) / valid_readings
-            self.last_distances = [self.base_distance] * 3  # Inizializza buffer
-            logger.info(f"Distanza base calibrata: {self.base_distance:.1f}mm ({valid_readings} letture)")
+            self.last_distances = [self.base_distance] * 3  # Initialize buffer
+            logger.info(f"Base distance calibrated: {self.base_distance:.1f}mm ({valid_readings} readings)")
         else:
             self.base_distance = 0
-            logger.error("Calibrazione fallita: nessuna lettura valida")
+            logger.error("Calibration failed: no valid readings")
             
     def read_distance_raw(self):
-        """Legge la distanza grezza dal sensore ToF"""
+        """Reads the raw distance from the ToF sensor"""
         try:
             if self.tof:
-                # La funzione read() restituisce la distanza in millimetri
+                # The read() function returns the distance in millimeters
                 distance = self.tof.read()
                 return distance
             return 0
         except Exception as e:
-            logger.debug(f"Errore lettura grezza distanza ToF: {e}", verbose=True)
+            logger.debug(f"Error reading raw distance from ToF: {e}", verbose=True)
             return 0
             
     def read_distance(self):
-        """Legge la distanza filtrata dal sensore ToF"""
+        """Reads the filtered distance from the ToF sensor"""
         raw_distance = self.read_distance_raw()
         
         if raw_distance <= 0:
             return 0
             
-        # Aggiungi al buffer e mantieni solo gli ultimi 3 valori
+        # Add to the buffer and keep only the last 3 values
         self.last_distances.append(raw_distance)
         if len(self.last_distances) > 3:
             self.last_distances.pop(0)
             
-        # Calcola la media per ridurre il rumore
+        # Calculate the average to reduce noise
         avg_distance = sum(self.last_distances) / len(self.last_distances)
         return avg_distance
             
     def check_distance(self):
-        """Verifica se la distanza attuale supera la soglia"""
+        """Checks if the current distance exceeds the threshold"""
         if not self.distance_enabled:
             return False
             
         try:
-            # Aumenta il contatore di debug
+            # Increment the debug counter
             self.debug_counter += 1
             
-            # Log periodico ogni 20 check
+            # Periodic log every 20 checks
             if self.debug_counter % 20 == 0:
-                logger.debug(f"Distance check attivo, soglia: {self.config.DISTANCE_THRESHOLD}mm", verbose=True)
+                logger.debug(f"Distance check active, threshold: {self.config.DISTANCE_THRESHOLD}mm", verbose=True)
             
             current_distance = self.read_distance()
-            if current_distance <= 0:  # Lettura non valida
+            if current_distance <= 0:  # Invalid reading
                 return False
                 
             diff = abs(current_distance - self.base_distance)
             
-            # Log più frequente per debug
+            # More frequent log for debugging
             if self.debug_counter % 10 == 0:
-                logger.debug(f"Distanza attuale: {current_distance:.1f}mm, base: {self.base_distance:.1f}mm, diff: {diff:.1f}mm", verbose=True)
+                logger.debug(f"Current distance: {current_distance:.1f}mm, base: {self.base_distance:.1f}mm, diff: {diff:.1f}mm", verbose=True)
             
             if diff > self.config.DISTANCE_THRESHOLD:
-                logger.info(f"Alert! Distanza cambiata: {current_distance:.1f}mm (diff: {diff:.1f}mm)")
+                logger.info(f"Alert! Distance changed: {current_distance:.1f}mm (diff: {diff:.1f}mm)")
                 return True
             return False
         except Exception as e:
-            logger.error(f"Errore verifica distanza: {e}")
+            logger.error(f"Error checking distance: {e}")
             return False
             
     def recalibrate(self):
-        """Ricalibra la distanza base"""
+        """Recalibrates the base distance"""
         try:
-            logger.info("Ricalibrazione sensore distanza...")
+            logger.info("Recalibrating distance sensor...")
             self.calibrate_distance()
             return self.base_distance > 0
         except Exception as e:
-            logger.error(f"Errore ricalibrazione ToF: {e}")
+            logger.error(f"Error recalibrating ToF: {e}")
             return False
