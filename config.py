@@ -2,7 +2,7 @@ import sensor
 
 class Config:
     # Debug
-    DEBUG = True
+    DEBUG = False
     VERBOSE_DEBUG = False  # Solo per messaggi verbosi di debug
     LOG_TO_CLOUD = True    # Invia log importanti anche al cloud
 
@@ -67,7 +67,7 @@ class Config:
     # Telegram photo settings
     SEND_PHOTOS_TELEGRAM = True       # Abilita/disabilita invio automatico delle foto tramite Telegram
     MAX_TELEGRAM_PHOTOS = 5           # Numero massimo di foto Telegram da mantenere per categoria
-    TELEGRAM_PHOTO_QUALITY = 35       # Qualità per le foto Telegram (0-100)
+    TELEGRAM_PHOTO_QUALITY = 100      # Qualità per le foto Telegram (0-100)
     TELEGRAM_PHOTO_SIZE = sensor.HD   # Risoluzione per le foto Telegram
 
     # Video recordings settings
