@@ -42,6 +42,8 @@ class AudioDetector:
         except Exception as e:
             logger.error(f"Errore audio: {e}")
 
+    # Correzione al metodo process_audio in audio_detector.py
+
     def process_audio(self, buf):
         """Elabora i dati audio ricevuti dalla callback"""
         # Verifica se l'audio è abilitato E se il monitoraggio audio è attivo
@@ -67,8 +69,19 @@ class AudioDetector:
                 # Lampeggia LED verde per debug
                 green_led.on()
                 
-                # Cattura foto usando PhotoManager
+                # Cattura foto
+                photo_path = None
+                telegram_photo_path = None
+                
+                # Prima salva foto normale per local storage
                 if self.photo_manager.capture_save_photo("audio_alert", "sound", int(level)):
+                    photo_path = self.photo_manager.last_photo_path
+                    
+                    # Ora cattura foto ottimizzata per Telegram se l'invio foto è abilitato
+                    if hasattr(self.config, 'SEND_PHOTOS_TELEGRAM') and self.config.SEND_PHOTOS_TELEGRAM:
+                        if self.photo_manager.capture_telegram_photo("audio_alert", f"tg_sound", int(level)):
+                            telegram_photo_path = self.photo_manager.last_photo_path
+                    
                     # Notifica cloud se disponibile
                     if self.cloud_manager:
                         self.cloud_manager.notify_event("Audio", f"Livello: {int(level)}")
@@ -78,7 +91,16 @@ class AudioDetector:
                         try:
                             for chat_id in self.config.TELEGRAM_AUTHORIZED_USERS:
                                 if chat_id != "*":  # Ignora l'asterisco
+                                    # Invio messaggio di testo
                                     self.telegram_manager.send(chat_id, f"🔊 Suono rilevato! Livello: {int(level)}")
+                                    
+                                    # Invio della foto (solo se abilitato e se disponibile)
+                                    if hasattr(self.config, 'SEND_PHOTOS_TELEGRAM') and self.config.SEND_PHOTOS_TELEGRAM and telegram_photo_path:
+                                        self.telegram_manager.send_photo(
+                                            chat_id, 
+                                            telegram_photo_path, 
+                                            f"🔊 Foto rilevamento audio - Livello: {int(level)}"
+                                        )
                         except Exception as e:
                             logger.error(f"Errore notifica Telegram: {e}")
                 

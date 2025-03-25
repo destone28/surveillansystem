@@ -22,7 +22,7 @@ class Config:
     PHOTO_SIZE = sensor.QVGA   # Risoluzione per le foto
     MAX_IMAGES = 20            # Numero massimo di immagini da mantenere per camera
     PHOTO_QUALITY = 90         # Qualità dell'immagine JPEG (0-100)
-    
+
     # Audio settings
     SOUND_THRESHOLD = 8723     # Soglia per rilevamento suoni
     SOUND_THRESHOLD_MIN = 500  # Valore minimo suggerito
@@ -63,6 +63,12 @@ class Config:
     # Telegram settings
     TELEGRAM_ENABLED = True           # Abilita/disabilita bot Telegram
     # TELEGRAM_TOKEN e TELEGRAM_AUTHORIZED_USERS da aggiungere in secrets_keys.py
+
+    # Telegram photo settings
+    SEND_PHOTOS_TELEGRAM = True       # Abilita/disabilita invio automatico delle foto tramite Telegram
+    MAX_TELEGRAM_PHOTOS = 5           # Numero massimo di foto Telegram da mantenere per categoria
+    TELEGRAM_PHOTO_QUALITY = 35       # Qualità molto bassa per le foto Telegram (0-100)
+    TELEGRAM_PHOTO_SIZE = sensor.QQVGA # Risoluzione molto bassa (160x120) per le foto Telegram
     
     # WiFi settings - Presi da secrets.py per compatibilità con TelegramBot
     WIFI_SSID = "Uaifai"      

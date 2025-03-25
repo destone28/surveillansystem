@@ -12,6 +12,8 @@ class FileManager:
         self.ensure_directory("camera_alert")
         self.ensure_directory("audio_alert")
         self.ensure_directory("distance_alert")
+        self.ensure_directory("telegram_request")  # Aggiunto per le foto richieste tramite Telegram
+
 
     def ensure_directory(self, directory):
         """Assicura che una directory esista"""
