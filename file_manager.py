@@ -8,11 +8,11 @@ def debug_print(msg):
 
 class FileManager:
     def __init__(self):
-        # Assicura che le cartelle necessarie esistano
+        # Ensures that the necessary folders exist
         self.ensure_directory("camera_alert")
         self.ensure_directory("audio_alert")
         self.ensure_directory("distance_alert")
-        self.ensure_directory("telegram_request")  # Aggiunto per le foto richieste tramite Telegram
+        self.ensure_directory("telegram_request")
         self.ensure_directory("camera_videos")
         self.ensure_directory("audio_videos")
         self.ensure_directory("distance_videos")
@@ -20,82 +20,82 @@ class FileManager:
 
 
     def ensure_directory(self, directory):
-        """Assicura che una directory esista"""
+        """Ensures that a directory exists"""
         try:
             try:
                 os.stat(directory)
-                debug_print(f"Cartella {directory} esistente")
+                debug_print(f"Folder {directory} exists")
             except OSError:
                 os.mkdir(directory)
-                debug_print(f"Cartella {directory} creata")
-                self.sync_filesystem()  # Sincronizza dopo la creazione
+                debug_print(f"Folder {directory} created")
+                self.sync_filesystem()  # Sync after creation
         except Exception as e:
-            debug_print(f"Errore nella creazione della cartella {directory}: {e}")
+            debug_print(f"Error creating folder {directory}: {e}")
 
     def manage_files(self, directory, max_files):
-        """Gestisce i file nella directory specificata (FIFO)"""
+        """Manages files in the specified directory (FIFO)"""
         try:
-            # Ottiene la lista dei file nella cartella
+            # Get the list of files in the folder
             files = os.listdir(directory)
 
-            # Filtra solo i file jpg
+            # Filter only jpg files
             jpg_files = [f for f in files if f.endswith('.jpg')]
 
-            # Stampa le informazioni sui file
-            debug_print(f"File in {directory}: {len(jpg_files)}")
+            # Print information about the files
+            debug_print(f"Files in {directory}: {len(jpg_files)}")
 
-            # Se il numero di file è maggiore o uguale al massimo, elimina i più vecchi
+            # If the number of files is greater than or equal to the maximum, delete the oldest ones
             if len(jpg_files) >= max_files:
-                # Ottieni le informazioni sui file per ordinarli per data
+                # Get file information to sort them by date
                 file_info = []
                 for filename in jpg_files:
                     full_path = f"{directory}/{filename}"
                     try:
                         stat = os.stat(full_path)
-                        file_info.append((full_path, stat[8]))  # stat[8] è mtime
+                        file_info.append((full_path, stat[8]))  # stat[8] is mtime
                     except:
-                        debug_print(f"Impossibile ottenere stat per {filename}")
+                        debug_print(f"Unable to get stat for {filename}")
 
-                # Ordina i file per data di creazione (dal più vecchio al più recente)
+                # Sort files by creation date (oldest to newest)
                 file_info.sort(key=lambda x: x[1])
 
-                # Elimina i file più vecchi fino a quando non siamo sotto il limite
+                # Delete the oldest files until we are below the limit
                 while len(file_info) >= max_files:
                     oldest_file = file_info.pop(0)[0]
-                    debug_print(f"Eliminazione file più vecchio: {oldest_file}")
+                    debug_print(f"Deleting oldest file: {oldest_file}")
                     try:
                         os.remove(oldest_file)
                     except Exception as e:
-                        debug_print(f"Errore eliminazione {oldest_file}: {e}")
+                        debug_print(f"Error deleting {oldest_file}: {e}")
                 
-                # Sincronizza il filesystem dopo le eliminazioni
+                # Sync the filesystem after deletions
                 self.sync_filesystem()
         except Exception as e:
-            debug_print(f"Errore nella gestione dei file in {directory}: {e}")
+            debug_print(f"Error managing files in {directory}: {e}")
     
     def save_image(self, img, filename, quality=90):
-        """Salva un'immagine con flush corretto"""
+        """Saves an image with proper flush"""
         try:
-            debug_print(f"Salvataggio immagine: {filename}")
+            debug_print(f"Saving image: {filename}")
             
-            # Metodo diretto: salva l'immagine direttamente sul file
+            # Direct method: save the image directly to the file
             img.save(filename, quality=quality)
             
-            # Sincronizza il filesystem dopo il salvataggio
+            # Sync the filesystem after saving
             self.sync_filesystem()
-            debug_print(f"Immagine salvata con successo: {filename}")
+            debug_print(f"Image successfully saved: {filename}")
             return True
         except Exception as e:
-            debug_print(f"Errore salvataggio immagine {filename}: {e}")
+            debug_print(f"Error saving image {filename}: {e}")
             return False
     
     def sync_filesystem(self):
-        """Sincronizza il filesystem per garantire che i file siano scritti su flash"""
+        """Syncs the filesystem to ensure files are written to flash"""
         try:
-            # Forza un sync del filesystem
+            # Force a filesystem sync
             os.sync()
-            logger.debug("Filesystem sincronizzato", verbose=True)
+            logger.debug("Filesystem synced", verbose=True)
             return True
         except Exception as e:
-            logger.error(f"Errore sincronizzazione filesystem: {e}")
+            logger.error(f"Error syncing filesystem: {e}")
             return False
