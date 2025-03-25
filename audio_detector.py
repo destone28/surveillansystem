@@ -5,13 +5,13 @@ import sensor
 import logger
 import secrets_keys
 
-# LED per debug
+# LED for debugging
 green_led = pyb.LED(2)
 
-# Variabile globale per l'istanza di AudioDetector (sarà impostata durante l'inizializzazione)
+# Global variable for the AudioDetector instance (will be set during initialization)
 global_audio_detector = None
 
-# Funzione di callback globale per l'audio
+# Global callback function for audio
 def global_audio_callback(buf):
     global global_audio_detector
     if global_audio_detector:
@@ -20,66 +20,66 @@ def global_audio_callback(buf):
 class AudioDetector:
     def __init__(self, config, file_manager, photo_manager):
         global global_audio_detector
-        global_audio_detector = self  # Assegna questa istanza alla variabile globale
+        global_audio_detector = self  # Assign this instance to the global variable
         
         self.config = config
         self.file_manager = file_manager
         self.photo_manager = photo_manager
-        self.cloud_manager = None  # Sarà impostato dal main
-        self.telegram_manager = None  # Sarà impostato dal main
-        self.video_manager = None  # Sarà impostato dal main
+        self.cloud_manager = None  # Will be set by the main
+        self.telegram_manager = None  # Will be set by the main
+        self.video_manager = None  # Will be set by the main
         self.audio_enabled = False
         self.last_capture_time = 0
         self.init_audio()
 
     def init_audio(self):
-        """Inizializza solo l'audio"""
-        logger.info("Inizializzazione audio detector...")
+        """Initialize audio only"""
+        logger.info("Initializing audio detector...")
 
-        # Audio (solo inizializzazione, lo streaming viene avviato separatamente)
+        # Audio (initialization only, streaming is started separately)
         try:
             audio.init(channels=1, frequency=16000, gain_db=self.config.AUDIO_GAIN, highpass=0.9883)
             self.audio_enabled = True
-            logger.info(f"Audio inizializzato con gain {self.config.AUDIO_GAIN}dB")
+            logger.info(f"Audio initialized with gain {self.config.AUDIO_GAIN}dB")
         except Exception as e:
-            logger.error(f"Errore audio: {e}")
+            logger.error(f"Audio error: {e}")
 
-    # Correzione al metodo process_audio in audio_detector.py
+    # Correction to the process_audio method in audio_detector.py
 
     def process_audio(self, buf):
-        """Elabora i dati audio ricevuti dalla callback"""
-        # Verifica se l'audio è abilitato E se il monitoraggio audio è attivo
+        """Process audio data received from the callback"""
+        # Check if audio is enabled AND if audio monitoring is active
         if not self.audio_enabled or not self.config.AUDIO_MONITORING_ENABLED or not self.config.GLOBAL_ENABLE:
             return
 
         try:
-            # Converte i byte in valori signed int
+            # Convert bytes to signed int values
             samples = [buf[i] | (buf[i+1] << 8) for i in range(0, len(buf), 2)]
-            # Calcola il valore medio del livello audio
+            # Calculate the average audio level
             level = sum(abs(s) for s in samples) / len(samples)
 
             if level > self.config.SOUND_THRESHOLD:
-                logger.info(f"Suono rilevato: {level} (soglia: {self.config.SOUND_THRESHOLD})")
+                logger.info(f"Sound detected: {level} (threshold: {self.config.SOUND_THRESHOLD})")
                 
-                # Controlla il periodo di inibizione
+                # Check inhibition period
                 current_time = time.time()
                 if current_time - self.last_capture_time < self.config.INHIBIT_PERIOD:
                     return
                     
                 self.last_capture_time = current_time
                 
-                # Lampeggia LED verde per debug
+                # Blink green LED for debugging
                 green_led.on()
                 
-                # Cattura foto
+                # Capture photo
                 photo_path = None
                 telegram_photo_path = None
                 
-                # Prima salva foto normale per local storage
+                # First save a normal photo for local storage
                 if self.photo_manager.capture_save_photo("audio_alert", "sound", int(level)):
                     photo_path = self.photo_manager.last_photo_path
                     
-                    # Ora cattura foto ottimizzata per Telegram se l'invio foto è abilitato
+                    # Now capture a photo optimized for Telegram if photo sending is enabled
                     if hasattr(self.config, 'SEND_PHOTOS_TELEGRAM') and self.config.SEND_PHOTOS_TELEGRAM:
                         if self.photo_manager.capture_telegram_photo("audio_alert", f"tg_sound", int(level)):
                             telegram_photo_path = self.photo_manager.last_photo_path
@@ -88,75 +88,75 @@ class AudioDetector:
                         if self.video_manager.record_video("audio", f"sound_{int(level)}"):
                             video_path = self.video_manager.last_video_path
                             
-                            # Notifica Telegram
+                            # Telegram notification
                             if self.telegram_manager and hasattr(self.config, 'SEND_VIDEOS_TELEGRAM') and self.config.SEND_VIDEOS_TELEGRAM:
                                 try:
                                     for chat_id in secrets_keys.TELEGRAM_AUTHORIZED_USERS:
-                                        if chat_id != "*":  # Ignora l'asterisco
-                                            self.telegram_manager.send(chat_id, "🎥 Registrazione video suono completata!")
+                                        if chat_id != "*":  # Ignore the asterisk
+                                            self.telegram_manager.send(chat_id, "🎥 Sound video recording completed!")
                                             self.telegram_manager.send_video(
                                                 chat_id,
                                                 video_path,
-                                                f"🎥 Video rilevamento suono - Livello: {int(level)}"
+                                                f"🎥 Sound detection video - Level: {int(level)}"
                                             )
                                 except Exception as e:
-                                    logger.error(f"Errore invio video Telegram: {e}")
+                                    logger.error(f"Error sending video to Telegram: {e}")
                     
-                    # Notifica cloud se disponibile
+                    # Cloud notification if available
                     if self.cloud_manager:
-                        self.cloud_manager.notify_event("Audio", f"Livello: {int(level)}")
+                        self.cloud_manager.notify_event("Audio", f"Level: {int(level)}")
                     
-                    # Notifica Telegram se disponibile
+                    # Telegram notification if available
                     if self.telegram_manager:
                         try:
                             for chat_id in secrets_keys.TELEGRAM_AUTHORIZED_USERS:
-                                if chat_id != "*":  # Ignora l'asterisco
-                                    # Invio messaggio di testo
-                                    self.telegram_manager.send(chat_id, f"🔊 Suono rilevato! Livello: {int(level)}")
+                                if chat_id != "*":  # Ignore the asterisk
+                                    # Send text message
+                                    self.telegram_manager.send(chat_id, f"🔊 Sound detected! Level: {int(level)}")
                                     
-                                    # Invio della foto (solo se abilitato e se disponibile)
+                                    # Send photo (only if enabled and available)
                                     if hasattr(self.config, 'SEND_PHOTOS_TELEGRAM') and self.config.SEND_PHOTOS_TELEGRAM and telegram_photo_path:
                                         self.telegram_manager.send_photo(
                                             chat_id, 
                                             telegram_photo_path, 
-                                            f"🔊 Foto rilevamento audio - Livello: {int(level)}"
+                                            f"🔊 Audio detection photo - Level: {int(level)}"
                                         )
                         except Exception as e:
-                            logger.error(f"Errore notifica Telegram: {e}")
+                            logger.error(f"Error sending Telegram notification: {e}")
                 
                 green_led.off()
         except Exception as e:
-            logger.error(f"Errore elaborazione audio: {e}")
+            logger.error(f"Error processing audio: {e}")
 
     def start_audio_detection(self):
-        """Avvia il rilevamento audio"""
+        """Start audio detection"""
         if not self.audio_enabled:
-            logger.warning("Audio non disponibile per il rilevamento")
+            logger.warning("Audio not available for detection")
             return False
 
         try:
-            # Avvia lo streaming audio con la callback globale
+            # Start audio streaming with the global callback
             audio.start_streaming(global_audio_callback)
-            logger.info("Streaming audio avviato")
+            logger.info("Audio streaming started")
             return True
         except Exception as e:
-            logger.error(f"Errore avvio streaming audio: {e}")
+            logger.error(f"Error starting audio streaming: {e}")
             return False
 
     def stop_audio_detection(self):
-        """Ferma il rilevamento audio"""
+        """Stop audio detection"""
         try:
             audio.stop_streaming()
-            logger.info("Streaming audio fermato")
+            logger.info("Audio streaming stopped")
             return True
         except Exception as e:
-            logger.error(f"Errore stop streaming audio: {e}")
+            logger.error(f"Error stopping audio streaming: {e}")
             return False
         
     def set_cloud_manager(self, cloud_manager):
-        """Imposta il riferimento al cloud manager"""
+        """Set the reference to the cloud manager"""
         self.cloud_manager = cloud_manager
 
     def set_telegram_manager(self, telegram_manager):
-        """Imposta il riferimento al telegram manager"""
+        """Set the reference to the Telegram manager"""
         self.telegram_manager = telegram_manager
