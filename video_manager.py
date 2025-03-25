@@ -6,87 +6,87 @@ import gc
 import pyb
 import logger
 
-# LED per debug
+# LEDs for debugging
 red_led = pyb.LED(1)
 blue_led = pyb.LED(3)
 
 class VideoManager:
     def __init__(self, config, file_manager):
         """
-        Gestore dei video che si occupa di registrare e salvare video
+        Video manager responsible for recording and saving videos
         
         Args:
-            config: Configurazione del sistema
-            file_manager: Riferimento al gestore dei file
+            config: System configuration
+            file_manager: Reference to the file manager
         """
         self.config = config
         self.file_manager = file_manager
         self.camera_enabled = False
-        self.current_mode = None  # Nessuna modalità iniziale
-        self.last_video_path = None  # Traccia dell'ultimo video salvato
-        self.telegram_manager = None  # Sarà impostato dal main
+        self.current_mode = None  # No initial mode
+        self.last_video_path = None  # Tracks the last saved video
+        self.telegram_manager = None  # Will be set by the main program
         
-        # Crea le directory per i video
+        # Create directories for videos
         self.file_manager.ensure_directory("camera_videos")
         self.file_manager.ensure_directory("audio_videos")
         self.file_manager.ensure_directory("distance_videos")
         
-        # Tentativo iniziale di inizializzazione della camera
+        # Initial attempt to initialize the camera
         try:
             sensor.reset()
             self.camera_enabled = True
-            logger.info("Camera disponibile per VideoManager")
+            logger.info("Camera available for VideoManager")
         except Exception as e:
-            logger.error(f"Errore inizializzazione camera nel VideoManager: {e}")
+            logger.error(f"Error initializing camera in VideoManager: {e}")
     
     def init_camera_for_video(self):
-        """Inizializza la camera per registrazione video (RGB565)"""
+        """Initializes the camera for video recording (RGB565)"""
         if not self.camera_enabled:
-            logger.warning("Camera non disponibile per video")
+            logger.warning("Camera not available for video")
             return False
             
         try:
             sensor.reset()
-            sensor.set_pixformat(sensor.RGB565)  # RGB565 per il video
-            sensor.set_framesize(sensor.QVGA)    # QVGA (320x240) per video
+            sensor.set_pixformat(sensor.RGB565)  # RGB565 for video
+            sensor.set_framesize(sensor.QVGA)    # QVGA (320x240) for video
             sensor.set_vflip(False)
             sensor.set_hmirror(True)
-            sensor.skip_frames(time=1000)  # Attendi per stabilizzazione
+            sensor.skip_frames(time=1000)  # Wait for stabilization
             
             self.current_mode = "video"
-            logger.info("Camera inizializzata per registrazione video")
+            logger.info("Camera initialized for video recording")
             return True
         except Exception as e:
-            logger.error(f"Errore camera video: {e}")
+            logger.error(f"Camera video error: {e}")
             return False
     
     def record_video(self, event_type, extra_info=None):
         """
-        Registra un video e lo salva nella directory appropriata
+        Records a video and saves it in the appropriate directory
         
         Args:
-            event_type: Tipo di evento ("camera", "audio", "distance")
-            extra_info: Informazione aggiuntiva da includere nel nome del file
+            event_type: Type of event ("camera", "audio", "distance")
+            extra_info: Additional information to include in the file name
             
         Returns:
-            bool: True se il video è stato registrato e salvato, False altrimenti
+            bool: True if the video was recorded and saved, False otherwise
         """
         if not self.camera_enabled:
-            logger.warning("Camera non disponibile per video")
+            logger.warning("Camera not available for video")
             return False
             
-        # Memorizza la modalità corrente per ripristinarla dopo
+        # Store the current mode to restore it later
         prev_mode = self.current_mode
         
         try:
-            # Inizializza la camera per il video
+            # Initialize the camera for video
             if not self.init_camera_for_video():
                 return False
                 
-            # Forza il garbage collection prima di iniziare la registrazione
+            # Force garbage collection before starting recording
             gc.collect()
             
-            # Determina la directory di salvataggio in base al tipo di evento
+            # Determine the save directory based on the event type
             if event_type == "camera":
                 directory = "camera_videos"
             elif event_type == "audio":
@@ -96,7 +96,7 @@ class VideoManager:
             else:
                 directory = "other_videos"
                 
-            # Assicura che la directory esista
+            # Ensure the directory exists
             self.file_manager.ensure_directory(directory)
                 
             # Generate filename with timestamp
@@ -107,19 +107,19 @@ class VideoManager:
             else:
                 filename = f"{directory}/video_{timestamp}.mjpeg"
                 
-            logger.info(f"Avvio registrazione video: {filename}")
+            logger.info(f"Starting video recording: {filename}")
             
-            # Accendi il LED rosso durante la registrazione
+            # Turn on the red LED during recording
             red_led.on()
-            blue_led.on()  # Aggiunge LED blu per distinguere registrazione video
+            blue_led.on()  # Add blue LED to distinguish video recording
             
-            # Crea l'oggetto Mjpeg
+            # Create the Mjpeg object
             video = mjpeg.Mjpeg(filename)
             
-            # Registra il video per la durata configurata
+            # Record the video for the configured duration
             frames_to_record = self.config.VIDEO_DURATION * self.config.VIDEO_FPS
             
-            clock = time.clock()  # Per tracciare FPS
+            clock = time.clock()  # To track FPS
             
             start_time = time.time()
             actual_frames = 0
@@ -131,20 +131,20 @@ class VideoManager:
                 clock.tick()
                 img = sensor.snapshot()
                 
-                # Aggiungi timestamp nel video
+                # Add timestamp to the video
                 current_time = time.localtime()
                 timestamp_text = f"{current_time[3]:02d}:{current_time[4]:02d}:{current_time[5]:02d}"
                 img.draw_string(5, 5, timestamp_text, color=(255, 255, 255), scale=2)
                 
-                # Aggiungi etichetta del tipo di evento
-                event_label = f"Evento: {event_type.upper()}"
+                # Add event type label
+                event_label = f"Event: {event_type.upper()}"
                 img.draw_string(5, sensor.height() - 20, event_label, color=(255, 255, 255), scale=2)
                 
-                # Scrivi il frame al video con la qualità specificata
+                # Write the frame to the video with the specified quality
                 video.write(img, quality=self.config.VIDEO_QUALITY)
                 actual_frames += 1
                 
-                # Se stiamo registrando più velocemente del FPS target, aggiungi un ritardo
+                # If recording faster than the target FPS, add a delay
                 target_frame_time = 1.0 / self.config.VIDEO_FPS
                 elapsed = clock.avg() / 1000.0  # convert to seconds
                 
@@ -152,27 +152,27 @@ class VideoManager:
                     delay = target_frame_time - elapsed
                     time.sleep(delay)
                     
-                # Aggiornamento debug ogni 10 frame
+                # Debug update every 10 frames
                 if actual_frames % 10 == 0:
-                    logger.debug(f"Registrazione video: {actual_frames}/{frames_to_record} frame, FPS: {clock.fps()}", verbose=True)
+                    logger.debug(f"Video recording: {actual_frames}/{frames_to_record} frames, FPS: {clock.fps()}", verbose=True)
                     
-                    # Alterna LED blu per feedback visivo durante registrazione
+                    # Toggle blue LED for visual feedback during recording
                     if actual_frames % 20 == 0:
                         blue_led.toggle()
             
-            # Chiudi il video
+            # Close the video
             video.close()
             
-            # Spegni i LED
+            # Turn off the LEDs
             red_led.off()
             blue_led.off()
             
-            # Aggiorna il percorso dell'ultimo video
+            # Update the last video path
             self.last_video_path = filename
-            logger.info(f"Video salvato: {self.last_video_path}, {actual_frames} frame")
+            logger.info(f"Video saved: {self.last_video_path}, {actual_frames} frames")
             
-            # Gestione dei file FIFO
-            max_videos = 5  # Limite di default
+            # Handle FIFO file management
+            max_videos = 5  # Default limit
             if hasattr(self.config, 'MAX_VIDEOS'):
                 max_videos = self.config.MAX_VIDEOS
                 
@@ -181,15 +181,15 @@ class VideoManager:
             return True
             
         except Exception as e:
-            logger.error(f"Errore registrazione video: {e}")
+            logger.error(f"Video recording error: {e}")
             red_led.off()
             blue_led.off()
             return False
             
         finally:
-            # Ripristina la modalità precedente della camera
+            # Restore the previous camera mode
             if prev_mode == "motion":
-                # Ripristina la modalità per rilevamento movimento
+                # Restore the mode for motion detection
                 try:
                     sensor.reset()
                     sensor.set_pixformat(sensor.GRAYSCALE)
@@ -199,8 +199,4 @@ class VideoManager:
                     sensor.skip_frames(time=500)
                     self.current_mode = "motion"
                 except Exception as e:
-                    logger.error(f"Errore ripristino camera motion: {e}")
-    
-    def set_telegram_manager(self, telegram_manager):
-        """Imposta il riferimento al telegram manager"""
-        self.telegram_manager = telegram_manager
+                    logger.error(f"Error restoring motion camera mode: {e}")
