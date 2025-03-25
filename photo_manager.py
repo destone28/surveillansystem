@@ -2,7 +2,7 @@ import sensor
 import time
 import pyb
 
-# LED per feedback visivo
+# LED for visual feedback
 red_led = pyb.LED(1)
 
 def debug_print(msg):
@@ -11,221 +11,221 @@ def debug_print(msg):
 class PhotoManager:
     def __init__(self, config, file_manager):
         """
-        Gestore delle foto che si occupa di catturare e salvare immagini
+        Photo manager responsible for capturing and saving images
         
         Args:
-            config: Configurazione del sistema
-            file_manager: Riferimento al gestore dei file
+            config: System configuration
+            file_manager: Reference to the file manager
         """
         self.config = config
         self.file_manager = file_manager
         self.camera_enabled = False
-        self.current_mode = None  # Nessuna modalità iniziale
-        self.last_photo_path = None  # Traccia dell'ultima foto salvata
+        self.current_mode = None  # No initial mode
+        self.last_photo_path = None  # Tracks the last saved photo path
         
-        # Tentativo iniziale di inizializzazione della camera
+        # Initial attempt to initialize the camera
         try:
             sensor.reset()
             self.camera_enabled = True
-            debug_print("Camera disponibile per il PhotoManager")
+            debug_print("Camera available for the PhotoManager")
         except Exception as e:
-            debug_print(f"Errore inizializzazione camera nel PhotoManager: {e}")
+            debug_print(f"Error initializing camera in PhotoManager: {e}")
     
     def init_camera_for_motion(self):
-        """Inizializza la camera per il rilevamento del movimento (grayscale)"""
+        """Initializes the camera for motion detection (grayscale)"""
         if not self.camera_enabled:
-            debug_print("Camera non disponibile")
+            debug_print("Camera not available")
             return False
             
         try:
             sensor.reset()
-            sensor.set_pixformat(sensor.GRAYSCALE)  # Usa scala di grigi per il motion detection
+            sensor.set_pixformat(sensor.GRAYSCALE)  # Use grayscale for motion detection
             sensor.set_framesize(self.config.FRAME_SIZE)
             sensor.set_vflip(False)
             sensor.set_hmirror(True)
             sensor.skip_frames(time=2000)
             
             self.current_mode = "motion"
-            debug_print("Camera inizializzata per motion detection")
-            debug_print(f"Dimensione immagine: {sensor.width()}x{sensor.height()}")
+            debug_print("Camera initialized for motion detection")
+            debug_print(f"Image size: {sensor.width()}x{sensor.height()}")
             return True
         except Exception as e:
-            debug_print(f"Errore camera motion: {e}")
+            debug_print(f"Motion camera error: {e}")
             return False
     
     def init_camera_for_photo(self, for_telegram=False):
         """
-        Inizializza la camera per scattare foto (RGB)
+        Initializes the camera for taking photos (RGB)
         
         Args:
-            for_telegram: Se True, usa una risoluzione inferiore per le foto destinate a Telegram
+            for_telegram: If True, use a lower resolution for photos intended for Telegram
         """
         if not self.camera_enabled:
-            debug_print("Camera non disponibile")
+            debug_print("Camera not available")
             return False
             
         try:
             sensor.reset()
             sensor.set_pixformat(sensor.RGB565)
             
-            # Usa una risoluzione più bassa se la foto è per Telegram
+            # Use a lower resolution if the photo is for Telegram
             if for_telegram and hasattr(self.config, 'TELEGRAM_PHOTO_SIZE'):
                 sensor.set_framesize(self.config.TELEGRAM_PHOTO_SIZE)
-                debug_print("Camera inizializzata per foto Telegram a bassa risoluzione")
+                debug_print("Camera initialized for Telegram photos at low resolution")
             else:
                 sensor.set_framesize(self.config.PHOTO_SIZE)
-                debug_print("Camera inizializzata per foto a risoluzione standard")
+                debug_print("Camera initialized for standard resolution photos")
                 
             sensor.set_vflip(False)
             sensor.set_hmirror(True)
             sensor.skip_frames(time=100)
             
             self.current_mode = "photo"
-            debug_print("Camera inizializzata per foto")
+            debug_print("Camera initialized for photos")
             return True
         except Exception as e:
-            debug_print(f"Errore camera photo: {e}")
+            debug_print(f"Photo camera error: {e}")
             return False
     
     def capture_save_photo(self, directory, prefix=None, extra_info=None, for_telegram=False):
         """
-        Cattura una foto e la salva nella directory specificata
+        Captures a photo and saves it in the specified directory
         
         Args:
-            directory: La directory dove salvare l'immagine
-            prefix: Prefisso opzionale per il nome del file (default: 'img')
-            extra_info: Informazione aggiuntiva da includere nel nome del file
-            for_telegram: Se True, usa qualità inferiore per le foto destinate a Telegram
+            directory: The directory where the image will be saved
+            prefix: Optional prefix for the file name (default: 'img')
+            extra_info: Additional information to include in the file name
+            for_telegram: If True, uses lower quality for photos intended for Telegram
             
         Returns:
-            bool: True se la foto è stata catturata e salvata, False altrimenti
+            bool: True if the photo was captured and saved, False otherwise
         """
         if not self.camera_enabled:
-            debug_print("Camera non disponibile per foto")
+            debug_print("Camera not available for photos")
             return False
             
-        # Passa alla modalità foto se necessario
+        # Switch to photo mode if necessary
         if self.current_mode != "photo":
             if not self.init_camera_for_photo(for_telegram):
                 return False
         
         try:
-            # Accendi il LED rosso durante la cattura
+            # Turn on the red LED during capture
             red_led.on()
             
-            # Cattura l'immagine
+            # Capture the image
             img = sensor.snapshot()
             
-            # Genera nome file con timestamp
+            # Generate file name with timestamp
             timestamp = int(time.time())
             
-            # Prefisso predefinito se non fornito
+            # Default prefix if not provided
             if not prefix:
                 prefix = "img"
                 
-            # Formato del nome file
+            # File name format
             if extra_info:
                 filename = f"{directory}/{prefix}_{timestamp}_{extra_info}.jpg"
             else:
                 filename = f"{directory}/{prefix}_{timestamp}.jpg"
             
-            # Determina la qualità della foto in base alla destinazione
+            # Determine photo quality based on destination
             if for_telegram and hasattr(self.config, 'TELEGRAM_PHOTO_QUALITY'):
                 quality = self.config.TELEGRAM_PHOTO_QUALITY
             else:
                 quality = self.config.PHOTO_QUALITY
             
-            # Salva l'immagine
+            # Save the image
             success = self.file_manager.save_image(img, filename, quality)
             
-            # Salva il percorso dell'ultima foto per riferimento
+            # Save the path of the last photo for reference
             if success:
                 self.last_photo_path = filename
-                debug_print(f"Ultimo percorso foto aggiornato: {self.last_photo_path}")
+                debug_print(f"Last photo path updated: {self.last_photo_path}")
                 
-                # Gestisci la logica FIFO
+                # Handle FIFO logic
                 max_files = self.config.MAX_TELEGRAM_PHOTOS if directory == "telegram_request" else self.config.MAX_IMAGES
                 self.file_manager.manage_files(directory, max_files)
             
-            # Spegni il LED rosso
+            # Turn off the red LED
             red_led.off()
             
             return success
         except Exception as e:
-            debug_print(f"Errore nella cattura della foto: {e}")
+            debug_print(f"Error capturing photo: {e}")
             red_led.off()
             return False
         finally:
-            # In ogni caso, tenta di ripristinare la camera alla modalità di rilevamento
-            # se era in quella modalità prima
+            # In any case, attempt to restore the camera to motion detection mode
+            # if it was in that mode before
             if self.current_mode == "photo" and getattr(self, 'previous_mode', None) == "motion":
                 self.init_camera_for_motion()
                 
     def capture_telegram_photo(self, directory="telegram_request", prefix="tg", extra_info=None):
         """
-        Cattura una foto ottimizzata specificamente per Telegram
+        Captures a photo specifically optimized for Telegram
         
         Args:
-            directory: La directory dove salvare l'immagine
-            prefix: Prefisso per il nome del file
-            extra_info: Informazione aggiuntiva da includere nel nome del file
+            directory: The directory where the image will be saved
+            prefix: Prefix for the file name
+            extra_info: Additional information to include in the file name
             
         Returns:
-            bool: True se la foto è stata catturata e salvata, False altrimenti
+            bool: True if the photo was captured and saved, False otherwise
         """
-        # Assicurati che la directory esista
+        # Ensure the directory exists
         try:
             self.file_manager.ensure_directory(directory)
         except:
             pass
             
-        # Memorizza la modalità corrente per ripristinarla dopo
+        # Store the current mode to restore it later
         prev_mode = self.current_mode
         
-        # Configura la fotocamera con risoluzione molto bassa per Telegram
+        # Configure the camera with very low resolution for Telegram
         if hasattr(sensor, 'QQVGA'):  # 160x120
             size_to_use = sensor.QQVGA
         elif hasattr(sensor, 'QQCIF'):  # 88x72
             size_to_use = sensor.QQCIF
         else:
-            size_to_use = sensor.QVGA  # Fallback a risoluzione leggermente più alta se necessario
+            size_to_use = sensor.QVGA  # Fallback to slightly higher resolution if necessary
             
         try:
-            # Configura la fotocamera per la massima compressione
+            # Configure the camera for maximum compression
             sensor.reset()
-            sensor.set_pixformat(sensor.RGB565)  # RGB565 per colore ma con meno dati di JPEG
+            sensor.set_pixformat(sensor.RGB565)  # RGB565 for color but with less data than JPEG
             sensor.set_framesize(size_to_use)
             sensor.set_vflip(False)
             sensor.set_hmirror(True)
             sensor.skip_frames(time=100)
             
-            # Cattura l'immagine
+            # Capture the image
             red_led.on()
             img = sensor.snapshot()
             red_led.off()
             
-            # Genera nome file con timestamp
+            # Generate file name with timestamp
             timestamp = int(time.time())
             
-            # Formato del nome file
+            # File name format
             if extra_info:
                 filename = f"{directory}/{prefix}_{timestamp}_{extra_info}.jpg"
             else:
                 filename = f"{directory}/{prefix}_{timestamp}.jpg"
             
-            # Usa qualità molto bassa per ridurre dimensione file
-            quality = 35  # Qualità JPEG molto bassa (0-100)
+            # Use very low quality to reduce file size
+            quality = 35  # Very low JPEG quality (0-100)
             if hasattr(self.config, 'TELEGRAM_PHOTO_QUALITY'):
                 quality = self.config.TELEGRAM_PHOTO_QUALITY
             
-            # Salva l'immagine
+            # Save the image
             success = self.file_manager.save_image(img, filename, quality)
             
             if success:
                 self.last_photo_path = filename
-                debug_print(f"Foto Telegram salvata: {self.last_photo_path}")
+                debug_print(f"Telegram photo saved: {self.last_photo_path}")
                 
-                # Gestisci la logica FIFO (meno file per le foto Telegram)
+                # Handle FIFO logic (fewer files for Telegram photos)
                 max_files = 5
                 if hasattr(self.config, 'MAX_TELEGRAM_PHOTOS'):
                     max_files = self.config.MAX_TELEGRAM_PHOTOS
@@ -235,9 +235,9 @@ class PhotoManager:
             return success
             
         except Exception as e:
-            debug_print(f"Errore nella cattura della foto per Telegram: {e}")
+            debug_print(f"Error capturing photo for Telegram: {e}")
             return False
         finally:
-            # Ripristina la modalità precedente
+            # Restore the previous mode
             if prev_mode == "motion":
                 self.init_camera_for_motion()
