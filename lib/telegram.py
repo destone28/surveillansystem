@@ -26,7 +26,7 @@ class TelegramBot:
                               # the first time or after errors.
         self.offset = 0     # Next message ID offset.
         self.watchdog_timeout_ms = 60000 # 60 seconds max idle time.
-        self.max_image_size = 50000  # Limita la dimensione dell'immagine (circa 50KB)
+        self.max_image_size = 50000  # Limit the image size (about 50KB)
 
     # Stop the task handling the bot. This should be called before
     # destroying the object, in order to also terminate the task.
@@ -34,7 +34,7 @@ class TelegramBot:
         self.active = False
 
     # Main telegram bot loop.
-    # Sould be executed asynchronously, like with:
+    # Should be executed asynchronously, like with:
     # asyncio.create_task(bot.run())
     async def run(self):
         print("[telegram] Bot task started")
@@ -56,18 +56,18 @@ class TelegramBot:
                     self.reconnect = True
                     await asyncio.sleep(5)  # Wait before retrying
 
-            # Aggiungi qui per debugging
+            # Add here for debugging
             if self.debug and not self.pending:
                 print("[telegram] Checking for updates...")
 
             self.send_api_requests()
             self.read_api_response()
 
-            # Aggiungi qui per debugging
+            # Add here for debugging
             if self.debug and self.pending:
                 print(f"[telegram] Waiting for response, pending since {time.ticks_diff(time.ticks_ms(),self.pending_since)}ms")
 
-            # Watchdog: if the connection is idle for a too long
+            # Watchdog: if the connection is idle for too long
             # time, force a reconnection.
             if self.pending and time.ticks_diff(time.ticks_ms(),self.pending_since) > self.watchdog_timeout_ms:
                 self.reconnect = True
@@ -121,7 +121,7 @@ class TelegramBot:
                 self.missed_write = request
 
     # Try to read the reply from the Telegram server. Process it
-    # and if needed ivoke the callback registered by the user for
+    # and if needed invoke the callback registered by the user for
     # incoming messages.
     def read_api_response(self):
         try:
@@ -276,8 +276,7 @@ class TelegramBot:
             return
         self.outgoing.append({"chat_id": chat_id, "text": text})
 
-    # Implementazione completamente semplificata per inviare una foto
-    # Questa versione è basata sull'esempio esatto del PDF
+    # Fully simplified implementation to send a photo
     def send_photo(self, chat_id, photo_path, caption=None):
         try:
             # Check if file exists and get its size
@@ -287,198 +286,198 @@ class TelegramBot:
 
                 if file_size > self.max_image_size:
                     # File is too large
-                    self.send(chat_id, f"📷 Foto scattata! Dimensione {file_size/1024:.1f}KB (troppo grande per l'invio diretto)")
+                    self.send(chat_id, f"📷 Photo taken! Size {file_size/1024:.1f}KB (too large for direct sending)")
                     return False
             except OSError:
-                self.send(chat_id, f"⚠️ Errore: impossibile trovare il file '{photo_path}'")
+                self.send(chat_id, f"⚠️ Error: unable to find the file '{photo_path}'")
                 return False
 
-            # Forza il garbage collection prima di iniziare
+            # Force garbage collection before starting
             gc.collect()
 
             print(f"[telegram] Sending photo {photo_path} ({file_size} bytes) to {chat_id}")
 
-            # Leggiamo la foto in memoria
+            # Read the photo into memory
             try:
                 with open(photo_path, 'rb') as f:
                     photo_data = f.read()
             except Exception as e:
                 print(f"[telegram] Error reading photo file: {e}")
-                self.send(chat_id, f"⚠️ Errore lettura file: {e}")
+                self.send(chat_id, f"⚠️ File read error: {e}")
                 return False
 
-            # Inviamo la foto usando la normale richiesta POST con URL param "chat_id"
-            # e il campo "document" contenente il file - approccio semplificato come da PDF
+            # Send the photo using a normal POST request with URL param "chat_id"
+            # and the "document" field containing the file
             try:
-                # Creiamo una nuova connessione dedicata
+                # Create a new dedicated connection
                 addr = socket.getaddrinfo("api.telegram.org", 443, socket.AF_INET)
                 addr = addr[0][-1]
                 sock = socket.socket(socket.AF_INET)
                 sock.connect(addr)
-                sock.setblocking(True)  # Modalità bloccante
+                sock.setblocking(True)  # Blocking mode
                 ssl_sock = ssl.wrap_socket(sock)
 
-                # Semplice boundary statico
+                # Simple static boundary
                 boundary = "----WebKitFormBoundaryNiclaVision"
 
-                # Contenuto del form
+                # Form content
                 form_data = bytearray()
 
-                # Campo chat_id
+                # chat_id field
                 form_data.extend(f"--{boundary}\r\n".encode())
                 form_data.extend(f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'.encode())
 
-                # Campo caption se presente
+                # caption field if present
                 if caption:
                     form_data.extend(f"--{boundary}\r\n".encode())
                     form_data.extend(f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'.encode())
 
-                # Campo "document" con il file
+                # "document" field with the file
                 form_data.extend(f"--{boundary}\r\n".encode())
                 form_data.extend(f'Content-Disposition: form-data; name="document"; filename="photo.jpg"\r\n'.encode())
                 form_data.extend(f'Content-Type: image/jpeg\r\n\r\n'.encode())
 
-                # Aggiungi il contenuto del file
+                # Add the file content
                 end_boundary = f"\r\n--{boundary}--\r\n".encode()
 
-                # Calcola la lunghezza totale
+                # Calculate the total length
                 total_length = len(form_data) + len(photo_data) + len(end_boundary)
 
-                # Creiamo l'header HTTP
+                # Create the HTTP header
                 header = f"POST /bot{self.token}/sendDocument HTTP/1.1\r\n"
                 header += "Host: api.telegram.org\r\n"
                 header += f"Content-Type: multipart/form-data; boundary={boundary}\r\n"
                 header += f"Content-Length: {total_length}\r\n"
                 header += "Connection: close\r\n\r\n"
 
-                # Invia l'header
+                # Send the header
                 ssl_sock.write(header.encode())
 
-                # Invia la prima parte del form
+                # Send the first part of the form
                 ssl_sock.write(form_data)
 
-                # Invia il contenuto del file
+                # Send the file content
                 ssl_sock.write(photo_data)
 
-                # Invia la parte finale
+                # Send the final part
                 ssl_sock.write(end_boundary)
 
-                # Leggi la risposta
+                # Read the response
                 response = bytearray(1024)
                 bytes_read = ssl_sock.readinto(response)
                 response_text = response[:bytes_read].decode('utf-8', 'ignore')
 
-                # Chiudi il socket
+                # Close the socket
                 ssl_sock.close()
                 sock.close()
 
-                # Controlla se la risposta è positiva
+                # Check if the response is positive
                 if "HTTP/1.1 200" in response_text:
                     print("[telegram] Photo sent successfully!")
                     return True
                 else:
-                    # Cerca più informazioni sull'errore nella risposta
+                    # Look for more error information in the response
                     error_info = response_text.split("\r\n\r\n")[-1] if "\r\n\r\n" in response_text else response_text
                     print(f"[telegram] Error response: {error_info[:200]}")
-                    self.send(chat_id, f"⚠️ Errore invio foto. Riprova più tardi.")
+                    self.send(chat_id, f"⚠️ Error sending photo. Please try again later.")
                     return False
 
             except Exception as e:
                 print(f"[telegram] Error in send_photo transaction: {e}")
-                self.send(chat_id, f"⚠️ Errore invio: {e}")
+                self.send(chat_id, f"⚠️ Sending error: {e}")
                 return False
 
         except Exception as e:
             print(f"[telegram] Error in send_photo: {e}")
-            self.send(chat_id, f"⚠️ Errore generico: {e}")
+            self.send(chat_id, f"⚠️ Generic error: {e}")
             return False
 
     def send_video(self, chat_id, video_path, caption=None):
         """
-        Invia un video tramite Telegram usando un approccio a blocchi per risparmiare memoria
+        Send a video via Telegram using a chunked approach to save memory
 
         Args:
-            chat_id: ID della chat
-            video_path: Percorso del file video
-            caption: Descrizione opzionale
+            chat_id: Chat ID
+            video_path: Video file path
+            caption: Optional description
 
         Returns:
-            bool: True se il video è stato inviato, False altrimenti
+            bool: True if the video was sent, False otherwise
         """
         try:
-            # Verifica se il file esiste e ottieni la sua dimensione
+            # Check if the file exists and get its size
             try:
                 stats = os.stat(video_path)
-                file_size = stats[6]  # Dimensione in byte
+                file_size = stats[6]  # Size in bytes
 
-                # Utilizziamo un valore hardcoded
-                max_video_size = 10000000  # 10MB (soglia ragionevole per Telegram)
+                # Use a hardcoded value
+                max_video_size = 10000000  # 10MB (reasonable threshold for Telegram)
 
                 if file_size > max_video_size:
-                    # File troppo grande
-                    self.send(chat_id, f"🎥 Video registrato! Dimensione {file_size/1024/1024:.1f}MB (troppo grande per l'invio diretto)")
+                    # File is too large
+                    self.send(chat_id, f"🎥 Video recorded! Size {file_size/1024/1024:.1f}MB (too large for direct sending)")
                     return False
             except OSError:
-                self.send(chat_id, f"⚠️ Errore: impossibile trovare il file '{video_path}'")
+                self.send(chat_id, f"⚠️ Error: unable to find the file '{video_path}'")
                 return False
 
-            # Forza il garbage collection prima di iniziare
+            # Force garbage collection before starting
             gc.collect()
 
             print(f"[telegram] Sending video {video_path} ({file_size} bytes) to {chat_id}")
 
-            # Invia il video usando la normale richiesta POST con URL param "chat_id"
-            # e il campo "document" contenente il file
+            # Send the video using a normal POST request with URL param "chat_id"
+            # and the "document" field containing the file
             try:
-                # Crea una nuova connessione dedicata
+                # Create a new dedicated connection
                 addr = socket.getaddrinfo("api.telegram.org", 443, socket.AF_INET)
                 addr = addr[0][-1]
                 sock = socket.socket(socket.AF_INET)
                 sock.connect(addr)
-                sock.setblocking(True)  # Modalità bloccante
+                sock.setblocking(True)  # Blocking mode
                 ssl_sock = ssl.wrap_socket(sock)
 
-                # Semplice boundary statico
+                # Simple static boundary
                 boundary = "----WebKitFormBoundaryNiclaVision"
 
-                # Contenuto del form
+                # Form content
                 form_data = bytearray()
 
-                # Campo chat_id
+                # chat_id field
                 form_data.extend(f"--{boundary}\r\n".encode())
                 form_data.extend(f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'.encode())
 
-                # Campo caption se presente
+                # caption field if present
                 if caption:
                     form_data.extend(f"--{boundary}\r\n".encode())
                     form_data.extend(f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'.encode())
 
-                # Campo "document" con il file
+                # "document" field with the file
                 form_data.extend(f"--{boundary}\r\n".encode())
                 form_data.extend(f'Content-Disposition: form-data; name="document"; filename="video.mjpeg"\r\n'.encode())
                 form_data.extend(f'Content-Type: video/mjpeg\r\n\r\n'.encode())
 
-                # Fine del form (da aggiungere dopo il contenuto del file)
+                # End of the form (to be added after the file content)
                 end_boundary = f"\r\n--{boundary}--\r\n".encode()
 
-                # Calcola la lunghezza totale
+                # Calculate the total length
                 total_length = len(form_data) + file_size + len(end_boundary)
 
-                # Crea l'header HTTP
+                # Create the HTTP header
                 header = f"POST /bot{self.token}/sendDocument HTTP/1.1\r\n"
                 header += "Host: api.telegram.org\r\n"
                 header += f"Content-Type: multipart/form-data; boundary={boundary}\r\n"
                 header += f"Content-Length: {total_length}\r\n"
                 header += "Connection: close\r\n\r\n"
 
-                # Invia l'header
+                # Send the header
                 ssl_sock.write(header.encode())
 
-                # Invia la prima parte del form
+                # Send the first part of the form
                 ssl_sock.write(form_data)
 
-                # Leggi e invia il file a blocchi per risparmiare memoria
-                chunk_size = 4096  # dimensione del blocco (4KB)
+                # Read and send the file in chunks to save memory
+                chunk_size = 4096  # chunk size (4KB)
                 sent_bytes = 0
 
                 try:
@@ -489,50 +488,50 @@ class TelegramBot:
                                 break
                             ssl_sock.write(chunk)
                             sent_bytes += len(chunk)
-                            # Feedback su stdout ogni 20KB
+                            # Feedback on stdout every 20KB
                             if sent_bytes % 20480 == 0:
-                                print(f"[telegram] Inviati {sent_bytes/1024:.1f}KB/{file_size/1024:.1f}KB")
-                            # Libera memoria
+                                print(f"[telegram] Sent {sent_bytes/1024:.1f}KB/{file_size/1024:.1f}KB")
+                            # Free memory
                             del chunk
                             gc.collect()
                 except Exception as e:
-                    print(f"[telegram] Error durante l'invio dei dati video: {e}")
+                    print(f"[telegram] Error during video data sending: {e}")
                     ssl_sock.close()
                     sock.close()
-                    self.send(chat_id, f"⚠️ Errore durante l'invio del video: {e}")
+                    self.send(chat_id, f"⚠️ Error during video sending: {e}")
                     return False
 
-                # Invia la parte finale
+                # Send the final part
                 ssl_sock.write(end_boundary)
 
-                # Leggi la risposta
+                # Read the response
                 response = bytearray(1024)
                 bytes_read = ssl_sock.readinto(response)
                 response_text = response[:bytes_read].decode('utf-8', 'ignore')
 
-                # Chiudi il socket
+                # Close the socket
                 ssl_sock.close()
                 sock.close()
 
-                # Controlla se la risposta è positiva
+                # Check if the response is positive
                 if "HTTP/1.1 200" in response_text:
                     print("[telegram] Video sent successfully!")
                     return True
                 else:
-                    # Cerca più informazioni sull'errore nella risposta
+                    # Look for more error information in the response
                     error_info = response_text.split("\r\n\r\n")[-1] if "\r\n\r\n" in response_text else response_text
                     print(f"[telegram] Error response: {error_info[:200]}")
-                    self.send(chat_id, f"⚠️ Errore invio video. Riprova più tardi.")
+                    self.send(chat_id, f"⚠️ Error sending video. Please try again later.")
                     return False
 
             except Exception as e:
                 print(f"[telegram] Error in send_video transaction: {e}")
-                self.send(chat_id, f"⚠️ Errore invio video: {e}")
+                self.send(chat_id, f"⚠️ Sending video error: {e}")
                 return False
 
         except Exception as e:
             print(f"[telegram] Error in send_video: {e}")
-            self.send(chat_id, f"⚠️ Errore generico invio video: {e}")
+            self.send(chat_id, f"⚠️ Generic video sending error: {e}")
             return False
 
     # This is just a utility method that can be used in order to wait
@@ -546,6 +545,7 @@ class TelegramBot:
             time.sleep(1)
             seconds += 1
             if seconds == timeout:
-                raise Exception("Timedout connecting to WiFi network")
+                raise Exception("Timed out connecting to WiFi network")
             pass
         print("[WiFi] Connected")
+
