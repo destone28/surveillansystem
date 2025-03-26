@@ -44,8 +44,6 @@ class AudioDetector:
         except Exception as e:
             logger.error(f"Audio error: {e}")
 
-    # Correction to the process_audio method in audio_detector.py
-
     def process_audio(self, buf):
         """Process audio data received from the callback"""
         # Check if audio is enabled AND if audio monitoring is active
@@ -68,7 +66,7 @@ class AudioDetector:
                     
                 self.last_capture_time = current_time
                 
-                # Blink green LED for debugging
+                # Turn on green LED for debugging
                 green_led.on()
                 
                 # Capture photo
@@ -84,49 +82,52 @@ class AudioDetector:
                         if self.photo_manager.capture_telegram_photo("audio_alert", f"tg_sound", int(level)):
                             telegram_photo_path = self.photo_manager.last_photo_path
 
+                    # Record video if enabled
+                    video_path = None
                     if hasattr(self.config, 'RECORD_VIDEO_ENABLED') and self.config.RECORD_VIDEO_ENABLED and self.video_manager:
                         if self.video_manager.record_video("audio", f"sound_{int(level)}"):
                             video_path = self.video_manager.last_video_path
-                            
-                            # Telegram notification
-                            if self.telegram_manager and hasattr(self.config, 'SEND_VIDEOS_TELEGRAM') and self.config.SEND_VIDEOS_TELEGRAM:
-                                try:
-                                    for chat_id in secrets_keys.TELEGRAM_AUTHORIZED_USERS:
-                                        if chat_id != "*":  # Ignore the asterisk
-                                            self.telegram_manager.send(chat_id, "🎥 Sound video recording completed!")
-                                            self.telegram_manager.send_video(
-                                                chat_id,
-                                                video_path,
-                                                f"🎥 Sound detection video - Level: {int(level)}"
-                                            )
-                                except Exception as e:
-                                    logger.error(f"Error sending video to Telegram: {e}")
                     
                     # Cloud notification if available
                     if self.cloud_manager:
                         self.cloud_manager.notify_event("Audio", f"Level: {int(level)}")
                     
-                    # Telegram notification if available
-                    if self.telegram_manager:
-                        try:
-                            for chat_id in secrets_keys.TELEGRAM_AUTHORIZED_USERS:
-                                if chat_id != "*":  # Ignore the asterisk
-                                    # Send text message
-                                    self.telegram_manager.send(chat_id, f"🔊 Sound detected! Level: {int(level)}")
-                                    
-                                    # Send photo (only if enabled and available)
-                                    if hasattr(self.config, 'SEND_PHOTOS_TELEGRAM') and self.config.SEND_PHOTOS_TELEGRAM and telegram_photo_path:
-                                        self.telegram_manager.send_photo(
-                                            chat_id, 
-                                            telegram_photo_path, 
-                                            f"🔊 Audio detection photo - Level: {int(level)}"
-                                        )
-                        except Exception as e:
-                            logger.error(f"Error sending Telegram notification: {e}")
+                    # Telegram notification via TelegramManager
+                    try:
+                        # Use the telegram_manager (internal bot)
+                        if self.telegram_manager and telegram_photo_path and video_path:
+                            # If using the new TelegramManager
+                            if hasattr(self.telegram_manager, 'notify_audio_event'):
+                                self.telegram_manager.notify_audio_event(level, telegram_photo_path, video_path)
+                            # Fallback to the old direct method
+                            else:
+                                for chat_id in secrets_keys.TELEGRAM_AUTHORIZED_USERS:
+                                    if chat_id != "*":  # Ignore the asterisk
+                                        # Send text message
+                                        self.telegram_manager.send(chat_id, f"🔊 Sound detected! Level: {int(level)}")
+                                        
+                                        # Send photo (only if enabled and available)
+                                        if hasattr(self.config, 'SEND_PHOTOS_TELEGRAM') and self.config.SEND_PHOTOS_TELEGRAM and telegram_photo_path:
+                                            self.telegram_manager.send_photo(
+                                                chat_id, 
+                                                telegram_photo_path, 
+                                                f"🔊 Audio detection photo - Level: {int(level)}"
+                                            )
+                                            
+                                        # Send video (only if enabled and available)
+                                        if hasattr(self.config, 'SEND_VIDEOS_TELEGRAM') and self.config.SEND_VIDEOS_TELEGRAM and video_path:
+                                            self.telegram_manager.send(chat_id, "🎥 Audio video recording completed!")
+                                            self.telegram_manager.send_video(
+                                                chat_id,
+                                                video_path,
+                                                f"🎥 Audio detection video - Level: {int(level)}"
+                                            )
+                    except Exception as e:
+                        logger.error(f"Telegram notification error: {e}")
                 
                 green_led.off()
         except Exception as e:
-            logger.error(f"Error processing audio: {e}")
+            logger.error(f"Audio processing error: {e}")
 
     def start_audio_detection(self):
         """Start audio detection"""
@@ -160,3 +161,7 @@ class AudioDetector:
     def set_telegram_manager(self, telegram_manager):
         """Set the reference to the Telegram manager"""
         self.telegram_manager = telegram_manager
+        
+    def set_video_manager(self, video_manager):
+        """Set the reference to the Video manager"""
+        self.video_manager = video_manager

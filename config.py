@@ -37,10 +37,10 @@ class Config:
     DISTANCE_RECALIBRATION = 300 # Recalibrate every 300 seconds
 
     # Video settings - TODO CHECK THIS TO BE DELETED
-    VIDEO_DURATION = 1        # Video duration in seconds
+    VIDEO_DURATION = 5        # Video duration in seconds
     VIDEO_DURATION_MIN = 3     # Minimum duration
     VIDEO_DURATION_MAX = 30    # Maximum duration
-    VIDEO_FPS = 5             # Frames per second
+    VIDEO_FPS = 15             # Frames per second
     VIDEO_FPS_MIN = 5          # Minimum FPS
     VIDEO_FPS_MAX = 30         # Maximum FPS
     VIDEO_QUALITY = 50         # Video quality (0-100)
@@ -62,7 +62,6 @@ class Config:
 
     # Telegram settings
     TELEGRAM_ENABLED = True           # Enable/disable Telegram bot
-    # TELEGRAM_TOKEN and TELEGRAM_AUTHORIZED_USERS to be added in secrets_keys.py
 
     # Telegram photo settings
     SEND_PHOTOS_TELEGRAM = True       # Enable/disable automatic photo sending via Telegram
