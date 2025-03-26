@@ -236,6 +236,7 @@ class TelegramManager:
                     "/status - View the system status\n"
                     "/enable - Enable the system\n"
                     "/disable - Disable the system\n"
+                    "/show_settings - Show all current settings\n"
                     "/help - Show all available commands"
                 )
 
@@ -281,7 +282,10 @@ class TelegramManager:
                     "*Storage settings:*\n"
                     "/set_max_images X - Set maximum number of images (5-100)\n"
                     "/set_max_videos X - Set maximum number of videos (2-20)\n"
-                    "/set_max_telegram_photos X - Set maximum number of Telegram photos (2-20)"
+                    "/set_max_telegram_photos X - Set maximum number of Telegram photos (2-20)\n\n"
+
+                    "*Other information:*\n"
+                    "/show_settings - Show all current settings"
                 )
 
             # Status command
@@ -500,6 +504,11 @@ class TelegramManager:
                 
             elif text.startswith("/set_max_telegram_photos "):
                 self._set_parameter(bot, chat_id, "max_telegram_photos", text)
+
+            # Show settings
+            elif text == "/show_settings":
+                settings_report = self._generate_settings_report()
+                bot.send(chat_id, settings_report)
 
             # Unrecognized command
             else:
@@ -769,3 +778,68 @@ class TelegramManager:
         except Exception as e:
             logger.error(f"Error setting parameter {param_type}: {e}")
             bot.send(chat_id, f"❌ Error setting parameter: {e}")
+
+    def _generate_settings_report(self):
+        """
+        Generates a formatted report with all configurable parameter values
+        
+        Returns:
+            str: Formatted report with all parameters
+        """
+        try:
+            report = []
+            
+            # Header
+            report.append("📊 *CURRENT SYSTEM SETTINGS*\n")
+            
+            # System status
+            report.append("*System Status:*")
+            report.append(f"- System: {'✅ Enabled' if self.config.GLOBAL_ENABLE else '❌ Disabled'}")
+            report.append(f"- Camera Monitoring: {'✅ Active' if self.config.CAMERA_MONITORING_ENABLED else '❌ Inactive'}")
+            report.append(f"- Audio Monitoring: {'✅ Active' if self.config.AUDIO_MONITORING_ENABLED else '❌ Inactive'}")
+            report.append(f"- Distance Monitoring: {'✅ Active' if self.config.DISTANCE_MONITORING_ENABLED else '❌ Inactive'}")
+            report.append("")
+            
+            # Threshold settings
+            report.append("*Threshold Settings:*")
+            report.append(f"- Motion Threshold: {self.config.MOTION_THRESHOLD}% (min: {self.config.MOTION_THRESHOLD_MIN}, max: {self.config.MOTION_THRESHOLD_MAX})")
+            report.append(f"- Audio Threshold: {self.config.SOUND_THRESHOLD} (min: {self.config.SOUND_THRESHOLD_MIN}, max: {self.config.SOUND_THRESHOLD_MAX})")
+            report.append(f"- Distance Threshold: {self.config.DISTANCE_THRESHOLD}mm (min: {self.config.DISTANCE_THRESHOLD_MIN}, max: {self.config.DISTANCE_THRESHOLD_MAX})")
+            report.append(f"- Inhibition Period: {self.config.INHIBIT_PERIOD}s (min: {self.config.INHIBIT_PERIOD_MIN}, max: {self.config.INHIBIT_PERIOD_MAX})")
+            report.append("")
+            
+            # Video settings
+            report.append("*Video Settings:*")
+            report.append(f"- Video Recording: {'✅ Enabled' if self.config.RECORD_VIDEO_ENABLED else '❌ Disabled'}")
+            report.append(f"- Send Videos on Telegram: {'✅ Enabled' if self.config.SEND_VIDEOS_TELEGRAM else '❌ Disabled'}")
+            report.append(f"- Video Duration: {self.config.VIDEO_DURATION}s (min: {self.config.VIDEO_DURATION_MIN}, max: {self.config.VIDEO_DURATION_MAX})")
+            report.append(f"- Video FPS: {self.config.VIDEO_FPS} (min: {self.config.VIDEO_FPS_MIN}, max: {self.config.VIDEO_FPS_MAX})")
+            report.append(f"- Video Quality: {self.config.VIDEO_QUALITY}% (min: {self.config.VIDEO_QUALITY_MIN}, max: {self.config.VIDEO_QUALITY_MAX})")
+            report.append("")
+            
+            # Photo settings
+            report.append("*Photo Settings:*")
+            report.append(f"- Send Photos on Telegram: {'✅ Enabled' if self.config.SEND_PHOTOS_TELEGRAM else '❌ Disabled'}")
+            report.append(f"- Photo Quality: {self.config.PHOTO_QUALITY}% (min: 10, max: 100)")
+            report.append(f"- Telegram Photo Quality: {self.config.TELEGRAM_PHOTO_QUALITY}% (min: 10, max: 100)")
+            report.append(f"- Photo Resolution: {self.config.PHOTO_SIZE}")
+            report.append("")
+            
+            # Other settings
+            report.append("*Other Settings:*")
+            report.append(f"- Audio Gain: {self.config.AUDIO_GAIN}dB (min: 0, max: 48)")
+            report.append(f"- Distance Recalibration: {self.config.DISTANCE_RECALIBRATION}s (min: 60, max: 3600)")
+            report.append("")
+            
+            # Storage settings
+            report.append("*Storage Settings:*")
+            report.append(f"- Max Images: {self.config.MAX_IMAGES} (min: 5, max: 100)")
+            report.append(f"- Max Videos: {self.config.MAX_VIDEOS} (min: 2, max: 20)")
+            report.append(f"- Max Telegram Photos: {self.config.MAX_TELEGRAM_PHOTOS} (min: 2, max: 20)")
+            
+            # Join all report lines with a newline
+            return "\n".join(report)
+            
+        except Exception as e:
+            logger.error(f"Error generating settings report: {e}")
+            return "❌ Error generating the settings report."
