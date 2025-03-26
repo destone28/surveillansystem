@@ -1,3 +1,5 @@
+![](./img/SurveillanSystem_logo.png)
+
 # Nicla Vision Alert Detector
 
 ## What is this project
