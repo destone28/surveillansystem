@@ -1,12 +1,12 @@
 # WiFi credentials
-WIFI_SSID = "Il_Tuo_SSID_WiFi"
-WIFI_PASS = "La_Tua_Password_WiFi"
+WIFI_SSID = "Your_WiFi_SSID"
+WIFI_PASS = "Your_WiFi_Password"
 
 # Arduino IoT Cloud credentials
-DEVICE_ID = "il_tuo_device_id"  # Device ID fornito da Arduino IoT Cloud
-SECRET_KEY = "il_tuo_secret_key"  # Secret Key fornito da Arduino IoT Cloud
+DEVICE_ID = "your_device_id"  # Device ID provided by Arduino IoT Cloud
+SECRET_KEY = "your_secret_key"  # Secret Key provided by Arduino IoT Cloud
 
 # Telegram bot credentials
-TELEGRAM_TOKEN = "il_tuo_token_bot"  # Token fornito da BotFather
-TELEGRAM_AUTHORIZED_USERS = ["il_tuo_chat_id"]  # Lista di chat ID autorizzati
-# Puoi usare ["*"] per permettere a chiunque di usare il bot
+TELEGRAM_TOKEN = "your_bot_token"  # Token provided by BotFather
+TELEGRAM_AUTHORIZED_USERS = ["your_chat_id"]  # List of authorized chat IDs
+# You can use ["*"] to allow anyone to use the bot
