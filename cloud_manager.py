@@ -119,6 +119,29 @@ class CloudManager:
                             on_write=self._on_send_videos_telegram_change)
             
             logger.info("Cloud variables registered", cloud=False)
+
+            # Photo parameters
+            self.client.register("photo_quality", value=self.config.PHOTO_QUALITY, 
+                            on_write=self._on_photo_quality_change)
+            self.client.register("telegram_photo_quality", value=self.config.TELEGRAM_PHOTO_QUALITY, 
+                            on_write=self._on_telegram_photo_quality_change)
+
+            # Audio parameters
+            self.client.register("audio_gain", value=self.config.AUDIO_GAIN, 
+                            on_write=self._on_audio_gain_change)
+
+            # Distance parameters
+            self.client.register("distance_recalibration", value=self.config.DISTANCE_RECALIBRATION, 
+                            on_write=self._on_distance_recalibration_change)
+
+            # Storage parameters
+            self.client.register("max_images", value=self.config.MAX_IMAGES, 
+                            on_write=self._on_max_images_change)
+            self.client.register("max_videos", value=self.config.MAX_VIDEOS, 
+                            on_write=self._on_max_videos_change)
+            self.client.register("max_telegram_photos", value=self.config.MAX_TELEGRAM_PHOTOS, 
+                            on_write=self._on_max_telegram_photos_change)
+
             return True
         except Exception as e:
             logger.error(f"Variable registration error: {e}")
@@ -198,6 +221,52 @@ class CloudManager:
                 # Video settings
                 self.config.RECORD_VIDEO_ENABLED = self.client["record_video_enabled"]
                 self.config.SEND_VIDEOS_TELEGRAM = self.client["send_videos_telegram"]
+
+                # Photo settings
+                self.config.PHOTO_QUALITY = self.config.validate_threshold(
+                    self.client["photo_quality"],
+                    10, 100,
+                    self.config.PHOTO_QUALITY
+                )
+
+                self.config.TELEGRAM_PHOTO_QUALITY = self.config.validate_threshold(
+                    self.client["telegram_photo_quality"],
+                    10, 100,
+                    self.config.TELEGRAM_PHOTO_QUALITY
+                )
+
+                # Audio settings
+                self.config.AUDIO_GAIN = self.config.validate_threshold(
+                    self.client["audio_gain"],
+                    0, 48,
+                    self.config.AUDIO_GAIN
+                )
+
+                # Distance settings
+                self.config.DISTANCE_RECALIBRATION = self.config.validate_threshold(
+                    self.client["distance_recalibration"],
+                    60, 3600,
+                    self.config.DISTANCE_RECALIBRATION
+                )
+
+                # Storage settings
+                self.config.MAX_IMAGES = self.config.validate_threshold(
+                    self.client["max_images"],
+                    5, 100,
+                    self.config.MAX_IMAGES
+                )
+
+                self.config.MAX_VIDEOS = self.config.validate_threshold(
+                    self.client["max_videos"],
+                    2, 20,
+                    self.config.MAX_VIDEOS
+                )
+
+                self.config.MAX_TELEGRAM_PHOTOS = self.config.validate_threshold(
+                    self.client["max_telegram_photos"],
+                    2, 20,
+                    self.config.MAX_TELEGRAM_PHOTOS
+                )
                 
                 # logger.info(f"State synchronized from cloud: Global={self.config.GLOBAL_ENABLE}, Camera={self.config.CAMERA_MONITORING_ENABLED}, Audio={self.config.AUDIO_MONITORING_ENABLED}, Distance={self.config.DISTANCE_MONITORING_ENABLED}")
                 return True
@@ -233,6 +302,13 @@ class CloudManager:
                 self.client["inhibit_period"] = self.config.INHIBIT_PERIOD
                 self.client["record_video_enabled"] = self.config.RECORD_VIDEO_ENABLED
                 self.client["send_videos_telegram"] = self.config.SEND_VIDEOS_TELEGRAM
+                self.client["photo_quality"] = self.config.PHOTO_QUALITY
+                self.client["telegram_photo_quality"] = self.config.TELEGRAM_PHOTO_QUALITY
+                self.client["audio_gain"] = self.config.AUDIO_GAIN
+                self.client["distance_recalibration"] = self.config.DISTANCE_RECALIBRATION
+                self.client["max_images"] = self.config.MAX_IMAGES
+                self.client["max_videos"] = self.config.MAX_VIDEOS
+                self.client["max_telegram_photos"] = self.config.MAX_TELEGRAM_PHOTOS
                 
                 # Update system status
                 status_msg = f"System {'active' if self.config.GLOBAL_ENABLE else 'inactive'} | Camera: {'ON' if self.config.CAMERA_MONITORING_ENABLED else 'OFF'} | Audio: {'ON' if self.config.AUDIO_MONITORING_ENABLED else 'OFF'} | Distance: {'ON' if self.config.DISTANCE_MONITORING_ENABLED else 'OFF'}"
@@ -251,3 +327,66 @@ class CloudManager:
         except Exception as e:
             logger.error(f"Cloud synchronization error: {e}")
             return False
+        
+    def _on_photo_quality_change(self, client, value):
+        """Callback when photo quality is changed from the cloud"""
+        if value is not None:
+            validated = self.config.validate_threshold(
+                value, 10, 100, self.config.PHOTO_QUALITY
+            )
+            self.config.PHOTO_QUALITY = validated
+            logger.info(f"Photo quality changed to {validated}% from cloud")
+
+    def _on_telegram_photo_quality_change(self, client, value):
+        """Callback when Telegram photo quality is changed from the cloud"""
+        if value is not None:
+            validated = self.config.validate_threshold(
+                value, 10, 100, self.config.TELEGRAM_PHOTO_QUALITY
+            )
+            self.config.TELEGRAM_PHOTO_QUALITY = validated
+            logger.info(f"Telegram photo quality changed to {validated}% from cloud")
+
+    def _on_audio_gain_change(self, client, value):
+        """Callback when audio gain is changed from the cloud"""
+        if value is not None:
+            validated = self.config.validate_threshold(
+                value, 0, 48, self.config.AUDIO_GAIN
+            )
+            self.config.AUDIO_GAIN = validated
+            logger.info(f"Audio gain changed to {validated}dB from cloud")
+
+    def _on_distance_recalibration_change(self, client, value):
+        """Callback when distance recalibration interval is changed from the cloud"""
+        if value is not None:
+            validated = self.config.validate_threshold(
+                value, 60, 3600, self.config.DISTANCE_RECALIBRATION
+            )
+            self.config.DISTANCE_RECALIBRATION = validated
+            logger.info(f"Distance recalibration interval changed to {validated}s from cloud")
+
+    def _on_max_images_change(self, client, value):
+        """Callback when max images is changed from the cloud"""
+        if value is not None:
+            validated = self.config.validate_threshold(
+                value, 5, 100, self.config.MAX_IMAGES
+            )
+            self.config.MAX_IMAGES = validated
+            logger.info(f"Max images changed to {validated} from cloud")
+
+    def _on_max_videos_change(self, client, value):
+        """Callback when max videos is changed from the cloud"""
+        if value is not None:
+            validated = self.config.validate_threshold(
+                value, 2, 20, self.config.MAX_VIDEOS
+            )
+            self.config.MAX_VIDEOS = validated
+            logger.info(f"Max videos changed to {validated} from cloud")
+
+    def _on_max_telegram_photos_change(self, client, value):
+        """Callback when max Telegram photos is changed from the cloud"""
+        if value is not None:
+            validated = self.config.validate_threshold(
+                value, 2, 20, self.config.MAX_TELEGRAM_PHOTOS
+            )
+            self.config.MAX_TELEGRAM_PHOTOS = validated
+            logger.info(f"Max Telegram photos changed to {validated} from cloud")

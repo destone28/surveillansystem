@@ -86,10 +86,31 @@ def telegram_callback(bot, msg_type, chat_name, sender_name, chat_id, text, entr
                 "/photos_off - Disable automatic photo sending\n"
                 "/video - Record an instant video\n"
                 "/videos_on - Enable automatic video recording\n"
-                "/videos_off - Disable automatic video recording\n"
+                "/videos_off - Disable automatic video recording\n\n"
+                
+                "*Threshold Settings:*\n"
                 "/set_motion_threshold X - Set motion threshold (0.5-50)\n"
                 "/set_audio_threshold X - Set audio threshold (500-20000)\n"
-                "/set_distance_threshold X - Set distance threshold (10-2000)"
+                "/set_distance_threshold X - Set distance threshold (10-2000)\n\n"
+                
+                "*Video Settings:*\n"
+                "/set_video_duration X - Set video duration in seconds (3-30)\n"
+                "/set_video_fps X - Set video frames per second (5-30)\n" 
+                "/set_video_quality X - Set video quality (10-100)\n\n"
+                
+                "*Photo Settings:*\n"
+                "/set_photo_quality X - Set photo quality (10-100)\n"
+                "/set_telegram_photo_quality X - Set Telegram photo quality (10-100)\n\n"
+                
+                "*Other Settings:*\n"
+                "/set_inhibit_period X - Set inhibition period in seconds (1-30)\n"
+                "/set_audio_gain X - Set audio gain in dB (0-48)\n"
+                "/set_distance_recalibration X - Set distance recalibration interval (60-3600)\n\n"
+                
+                "*Storage Settings:*\n"
+                "/set_max_images X - Set maximum images to keep (5-100)\n"
+                "/set_max_videos X - Set maximum videos to keep (2-20)\n"
+                "/set_max_telegram_photos X - Set maximum Telegram photos (2-20)"
             )
 
         # Status command updated to include photo and video sending status
@@ -270,6 +291,42 @@ def telegram_callback(bot, msg_type, chat_name, sender_name, chat_id, text, entr
                 logger.error(f"Error recording instant video: {e}")
                 bot.send(chat_id, f"❌ Error while recording the video: {e}")
 
+        elif text.startswith("/set_video_duration "):
+            _set_parameter(bot, chat_id, "video_duration", text)
+            
+        elif text.startswith("/set_video_fps "):
+            _set_parameter(bot, chat_id, "video_fps", text)
+            
+        elif text.startswith("/set_video_quality "):
+            _set_parameter(bot, chat_id, "video_quality", text)
+
+        # Aggiungere comandi per i parametri foto
+        elif text.startswith("/set_photo_quality "):
+            _set_parameter(bot, chat_id, "photo_quality", text)
+            
+        elif text.startswith("/set_telegram_photo_quality "):
+            _set_parameter(bot, chat_id, "telegram_photo_quality", text)
+
+        # Aggiungere comandi per gli altri parametri
+        elif text.startswith("/set_inhibit_period "):
+            _set_parameter(bot, chat_id, "inhibit_period", text)
+            
+        elif text.startswith("/set_audio_gain "):
+            _set_parameter(bot, chat_id, "audio_gain", text)
+            
+        elif text.startswith("/set_distance_recalibration "):
+            _set_parameter(bot, chat_id, "distance_recalibration", text)
+
+        # Aggiungere comandi per i parametri di archiviazione
+        elif text.startswith("/set_max_images "):
+            _set_parameter(bot, chat_id, "max_images", text)
+            
+        elif text.startswith("/set_max_videos "):
+            _set_parameter(bot, chat_id, "max_videos", text)
+            
+        elif text.startswith("/set_max_telegram_photos "):
+            _set_parameter(bot, chat_id, "max_telegram_photos", text)
+
         # Unrecognized command
         else:
             bot.send(chat_id, "❓ Unrecognized command. Use /help to see available commands.")
@@ -352,6 +409,180 @@ def _set_threshold(bot, chat_id, threshold_type, command):
     except Exception as e:
         logger.error(f"Error setting threshold {threshold_type}: {e}")
         bot.send(chat_id, f"❌ Error setting threshold: {e}")
+
+# Function to set parameters
+def _set_parameter(bot, chat_id, param_type, command):
+    global cloud_manager
+
+    try:
+        # Extract the value from the command string
+        value_str = command.split(" ")[1]
+        
+        # Convert to the appropriate type (float or int)
+        if param_type in ["video_duration", "video_fps", "video_quality", 
+                         "photo_quality", "telegram_photo_quality", 
+                         "inhibit_period", "audio_gain", "distance_recalibration",
+                         "max_images", "max_videos", "max_telegram_photos"]:
+            # These parameters are integers
+            value = int(value_str)
+        else:
+            # Default to float for other parameters
+            value = float(value_str)
+
+        if cloud_manager:
+            # Video parameters
+            if param_type == "video_duration":
+                validated = Config.validate_threshold(
+                    value,
+                    Config.VIDEO_DURATION_MIN,
+                    Config.VIDEO_DURATION_MAX,
+                    Config.VIDEO_DURATION
+                )
+                Config.VIDEO_DURATION = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"🎥 Video duration set to {validated}s")
+                logger.info(f"Video duration changed to {validated}s via Telegram")
+                
+            elif param_type == "video_fps":
+                validated = Config.validate_threshold(
+                    value,
+                    Config.VIDEO_FPS_MIN,
+                    Config.VIDEO_FPS_MAX,
+                    Config.VIDEO_FPS
+                )
+                Config.VIDEO_FPS = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"🎥 Video FPS set to {validated}")
+                logger.info(f"Video FPS changed to {validated} via Telegram")
+                
+            elif param_type == "video_quality":
+                validated = Config.validate_threshold(
+                    value,
+                    Config.VIDEO_QUALITY_MIN,
+                    Config.VIDEO_QUALITY_MAX,
+                    Config.VIDEO_QUALITY
+                )
+                Config.VIDEO_QUALITY = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"🎥 Video quality set to {validated}%")
+                logger.info(f"Video quality changed to {validated}% via Telegram")
+                
+            # Photo parameters
+            elif param_type == "photo_quality":
+                validated = Config.validate_threshold(
+                    value,
+                    10,  # Min quality
+                    100,  # Max quality
+                    Config.PHOTO_QUALITY
+                )
+                Config.PHOTO_QUALITY = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"📷 Photo quality set to {validated}%")
+                logger.info(f"Photo quality changed to {validated}% via Telegram")
+                
+            elif param_type == "telegram_photo_quality":
+                validated = Config.validate_threshold(
+                    value,
+                    10,  # Min quality
+                    100,  # Max quality
+                    Config.TELEGRAM_PHOTO_QUALITY
+                )
+                Config.TELEGRAM_PHOTO_QUALITY = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"📱 Telegram photo quality set to {validated}%")
+                logger.info(f"Telegram photo quality changed to {validated}% via Telegram")
+                
+            # Other parameters
+            elif param_type == "inhibit_period":
+                validated = Config.validate_threshold(
+                    value,
+                    Config.INHIBIT_PERIOD_MIN,
+                    Config.INHIBIT_PERIOD_MAX,
+                    Config.INHIBIT_PERIOD
+                )
+                Config.INHIBIT_PERIOD = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"⏱️ Inhibit period set to {validated}s")
+                logger.info(f"Inhibit period changed to {validated}s via Telegram")
+                
+            elif param_type == "audio_gain":
+                validated = Config.validate_threshold(
+                    value,
+                    0,  # Min gain
+                    48,  # Max gain
+                    Config.AUDIO_GAIN
+                )
+                Config.AUDIO_GAIN = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"🔊 Audio gain set to {validated}dB")
+                logger.info(f"Audio gain changed to {validated}dB via Telegram")
+                
+                # Reinitialize audio detector if active
+                global audio_detector
+                if audio_detector:
+                    audio_detector.stop_audio_detection()
+                    audio_detector.init_audio()
+                    audio_detector.start_audio_detection()
+                    bot.send(chat_id, "🔄 Audio detector reinitialized with new gain")
+                
+            elif param_type == "distance_recalibration":
+                validated = Config.validate_threshold(
+                    value,
+                    60,  # Min time (1 minute)
+                    3600,  # Max time (1 hour)
+                    Config.DISTANCE_RECALIBRATION
+                )
+                Config.DISTANCE_RECALIBRATION = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"📏 Distance recalibration interval set to {validated}s")
+                logger.info(f"Distance recalibration interval changed to {validated}s via Telegram")
+                
+            # Storage parameters
+            elif param_type == "max_images":
+                validated = Config.validate_threshold(
+                    value,
+                    5,  # Min images
+                    100,  # Max images
+                    Config.MAX_IMAGES
+                )
+                Config.MAX_IMAGES = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"🖼️ Maximum images set to {validated}")
+                logger.info(f"Maximum images changed to {validated} via Telegram")
+                
+            elif param_type == "max_videos":
+                validated = Config.validate_threshold(
+                    value,
+                    2,  # Min videos
+                    20,  # Max videos
+                    Config.MAX_VIDEOS
+                )
+                Config.MAX_VIDEOS = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"🎬 Maximum videos set to {validated}")
+                logger.info(f"Maximum videos changed to {validated} via Telegram")
+                
+            elif param_type == "max_telegram_photos":
+                validated = Config.validate_threshold(
+                    value,
+                    2,  # Min photos
+                    20,  # Max photos
+                    Config.MAX_TELEGRAM_PHOTOS
+                )
+                Config.MAX_TELEGRAM_PHOTOS = validated
+                cloud_manager.sync_to_cloud()
+                bot.send(chat_id, f"📱 Maximum Telegram photos set to {validated}")
+                logger.info(f"Maximum Telegram photos changed to {validated} via Telegram")
+                
+            else:
+                bot.send(chat_id, "❌ Invalid parameter type")
+        else:
+            bot.send(chat_id, "❌ Unable to set parameter: Cloud manager not available")
+    except ValueError:
+        bot.send(chat_id, "❌ Invalid value. Please use a number.")
+    except Exception as e:
+        logger.error(f"Error setting parameter {param_type}: {e}")
+        bot.send(chat_id, f"❌ Error setting parameter: {e}")
 
 # Asynchronous task that runs the main loop
 async def main_loop():
