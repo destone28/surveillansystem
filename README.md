@@ -98,9 +98,10 @@ The project maximizes the hardware capabilities of Arduino Nicla Vision:
    - Go to the "Dashboards" section and click "Create Dashboard"
    - Assign a name to the dashboard (e.g., "NiclaVision Control")
    - Add the following widgets associated with the created variables:
-     - Switches for: global_enable, camera_monitoring, audio_monitoring, distance_monitoring, record_video_enabled, send_videos_telegram
+     - CloudSwitches for: global_enable, camera_monitoring, audio_monitoring, distance_monitoring, record_video_enabled, send_videos_telegram
      - Sliders for: sound_threshold, motion_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
-     - Text widgets for: system_status, last_event, last_event_time, log_messages
+     - Value widgets for: system_status, last_event, last_event_time
+     - Messenger for: log_messages
 
 ### 4. Creating the Telegram Bot
 
@@ -435,9 +436,10 @@ Il progetto sfrutta al massimo le capacità hardware dell'Arduino Nicla Vision:
    - Vai alla sezione "Dashboards" e clicca "Create Dashboard"
    - Assegna un nome al dashboard (ad esempio "NiclaVision Control")
    - Aggiungi i seguenti widget associati alle variabili create:
-     - Switch per: global_enable, camera_monitoring, audio_monitoring, distance_monitoring, record_video_enabled, send_videos_telegram
+     - CloudSwitch per: global_enable, camera_monitoring, audio_monitoring, distance_monitoring, record_video_enabled, send_videos_telegram
      - Slider per: sound_threshold, motion_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
-     - Text per: system_status, last_event, last_event_time, log_messages
+     - Value per: system_status, last_event, last_event_time
+     - Messenger per: log_messages
 
 ### 4. Creazione del Bot Telegram
 
