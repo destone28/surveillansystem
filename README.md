@@ -443,8 +443,8 @@ Il progetto sfrutta al massimo le capacità hardware dell'Arduino Nicla Vision:
      - Value per: system_status, last_event, last_event_time
      - Messenger per: log_messages
    - Puoi organizzare tutti i widgets in un layout simile a quello nell'immagine:
-   ![](./img/SurveillanSystem_logo.png)
-
+   ![](./img/dashboard_layout.png)
+   
 ### 4. Creazione del Bot Telegram
 
 1. **Crea un nuovo bot su Telegram**:
