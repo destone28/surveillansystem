@@ -102,6 +102,8 @@ The project maximizes the hardware capabilities of Arduino Nicla Vision:
      - Sliders for: sound_threshold, motion_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
      - Value widgets for: system_status, last_event, last_event_time
      - Messenger for: log_messages
+   - You can organize all the widgets in a layout similar to the following in the image:
+   ![](./img/dashboard_layout.png)
 
 ### 4. Creating the Telegram Bot
 
@@ -440,6 +442,8 @@ Il progetto sfrutta al massimo le capacità hardware dell'Arduino Nicla Vision:
      - Slider per: sound_threshold, motion_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
      - Value per: system_status, last_event, last_event_time
      - Messenger per: log_messages
+   - Puoi organizzare tutti i widgets in un layout simile a quello nell'immagine:
+   ![](./img/SurveillanSystem_logo.png)
 
 ### 4. Creazione del Bot Telegram
 
