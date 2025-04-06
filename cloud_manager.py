@@ -1010,28 +1010,28 @@ class CloudManager:
         # Additional client update for synchronous mode
         if self.is_connected and self.client:
             try:
-            logger.debug("Updating cloud state...", verbose=True)
-            self.client.update()
+                logger.debug("Updating cloud state...", verbose=True)
+                self.client.update()
             except Exception as e:
-            logger.error(f"Error updating cloud client: {e}")
-            self.is_connected = False
+                logger.error(f"Error updating cloud client: {e}")
+                self.is_connected = False
 
         return self.is_connected
 
-        def update_status(self, status):
+    def update_status(self, status):
         """Updates the system status on the cloud"""
         if self.client and self.is_connected:
             try:
-            self.client["system_status"] = status
-            # In synchronous mode, update() is required after each change
-            self.client.update()
-            return True
+                self.client["system_status"] = status
+                # In synchronous mode, update() is required after each change
+                self.client.update()
+                return True
             except Exception as e:
-            logger.error(f"Error updating status: {e}")
-            return False
+                logger.error(f"Error updating status: {e}")
+                return False
         return False
 
-        def _update_system_status(self):
+    def _update_system_status(self):
         """Updates the system status based on the current configuration"""
         if not self.is_connected or not self.client:
             return False
@@ -1048,69 +1048,69 @@ class CloudManager:
             logger.error(f"Error updating system status: {e}")
             return False
 
-        def add_log_message(self, message):
+    def add_log_message(self, message):
         """Adds a message to the cloud log"""
         if self.client and self.is_connected:
             try:
-            # Record timestamp
-            timestamp = time.localtime()
-            time_str = f"{timestamp[3]:02d}:{timestamp[4]:02d}:{timestamp[5]:02d}"
+                # Record timestamp
+                timestamp = time.localtime()
+                time_str = f"{timestamp[3]:02d}:{timestamp[4]:02d}:{timestamp[5]:02d}"
 
-            # Format the message
-            log_msg = f"[{time_str}] {message}"
+                # Format the message
+                log_msg = f"[{time_str}] {message}"
 
-            # Add to the local buffer
-            self.log_messages.append(log_msg)
+                # Add to the local buffer
+                self.log_messages.append(log_msg)
 
-            # Keep only the last message
-            if len(self.log_messages) > 1:
-                self.log_messages = self.log_messages[-1:]
+                # Keep only the last message
+                if len(self.log_messages) > 1:
+                    self.log_messages = self.log_messages[-1:]
 
-            # Update the cloud variable
-            self.client["log_messages"] = "\n".join(self.log_messages)
+                # Update the cloud variable
+                self.client["log_messages"] = "\n".join(self.log_messages)
 
-            # In synchronous mode, update() is required after each change
-            self.client.update()
+                # In synchronous mode, update() is required after each change
+                self.client.update()
 
-            return True
+                return True
             except Exception as e:
-            logger.error(f"Error adding log: {e}")
-            return False
+                logger.error(f"Error adding log: {e}")
+                return False
         return False
 
-        def notify_event(self, event_type, details=""):
+    def notify_event(self, event_type, details=""):
         """Notifies an event on the cloud"""
         if self.client and self.is_connected:
             try:
-            # Record timestamp
-            timestamp = time.localtime()
-            time_str = f"{timestamp[3]:02d}:{timestamp[4]:02d}:{timestamp[5]:02d}"
+                # Record timestamp
+                timestamp = time.localtime()
+                time_str = f"{timestamp[3]:02d}:{timestamp[4]:02d}:{timestamp[5]:02d}"
 
-            # Format the event message
-            event_msg = f"{event_type}: {details}"
+                # Format the event message
+                event_msg = f"{event_type}: {details}"
 
-            # Update the cloud variables
-            self.client["last_event"] = event_msg
-            self.client["last_event_time"] = time_str
-            self.client["event_type"] = event_type
+                # Update the cloud variables
+                self.client["last_event"] = event_msg
+                self.client["last_event_time"] = time_str
+                self.client["event_type"] = event_type
 
-            # Also add to the log
-            self.add_log_message(f"Event: {event_msg}")
+                # Also add to the log
+                self.add_log_message(f"Event: {event_msg}")
 
-            # Update status to show the event
-            temp_status = f"Event {event_type} detected: {details}"
-            self.client["system_status"] = temp_status
+                # Update status to show the event
+                temp_status = f"Event {event_type} detected: {details}"
+                self.client["system_status"] = temp_status
 
-            # In synchronous mode, update() is required after each change
-            self.client.update()
+                # In synchronous mode, update() is required after each change
+                self.client.update()
 
-            # After a while, restore the normal status
-            time.sleep(2)
-            self._update_system_status()
-            self.client.update()
+                # After a while, restore the normal status
+                time.sleep(2)
+                self._update_system_status()
+                self.client.update()
 
-            return True
+                return True
             except Exception as e:
-            logger.error(f"Error notifying event: {e}")
-            return False
+                logger.error(f"Error notifying event: {e}")
+                return False
         return False
