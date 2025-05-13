@@ -50,7 +50,7 @@ class PhotoManager:
             debug_print(f"Image size: {sensor.width()}x{sensor.height()}")
             return True
         except Exception as e:
-            debug_print(f"Motion camera error: {e}")
+            debug_print(f"Camera camera error: {e}")
             return False
     
     def init_camera_for_photo(self, for_telegram=False):

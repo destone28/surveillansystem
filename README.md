@@ -80,8 +80,8 @@ The project maximizes the hardware capabilities of Arduino Nicla Vision:
    | camera_monitoring | boolean | Enable/disable camera monitoring |
    | audio_monitoring | boolean | Enable/disable microphone monitoring |
    | distance_monitoring | boolean | Enable/disable distance sensor monitoring |
-   | sound_threshold | integer | Threshold for audio detection |
-   | motion_threshold | float | Threshold for motion detection |
+   | audio_threshold | integer | Threshold for audio detection |
+   | camera_threshold | float | Threshold for motion detection |
    | distance_threshold | integer | Threshold for distance variation detection |
    | video_duration | integer | Duration of recorded videos (in seconds) |
    | video_fps | integer | Video frame rate |
@@ -99,7 +99,7 @@ The project maximizes the hardware capabilities of Arduino Nicla Vision:
    - Assign a name to the dashboard (e.g., "NiclaVision Control")
    - Add the following widgets associated with the created variables:
      - CloudSwitches for: global_enable, camera_monitoring, audio_monitoring, distance_monitoring, record_video_enabled, send_videos_telegram
-     - Sliders for: sound_threshold, motion_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
+     - Sliders for: audio_threshold, camera_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
      - Value widgets for: system_status, last_event, last_event_time
      - Messenger for: log_messages
    - You can organize all the widgets in a layout similar to the following in the image:
@@ -207,7 +207,7 @@ The Telegram bot supports the following commands:
 - `/videos_off` - Disable automatic video recording
 
 #### Threshold Settings
-- `/set_motion_threshold X` - Set motion threshold (0.5-50)
+- `/set_camera_threshold X` - Set motion threshold (0.5-50)
 - `/set_audio_threshold X` - Set audio threshold (500-20000)
 - `/set_distance_threshold X` - Set distance threshold (10-2000)
 
@@ -420,8 +420,8 @@ Il progetto sfrutta al massimo le capacità hardware dell'Arduino Nicla Vision:
    | camera_monitoring | boolean | Attiva/disattiva il monitoraggio via camera |
    | audio_monitoring | boolean | Attiva/disattiva il monitoraggio via microfono |
    | distance_monitoring | boolean | Attiva/disattiva il monitoraggio via sensore di distanza |
-   | sound_threshold | integer | Soglia per il rilevamento audio |
-   | motion_threshold | float | Soglia per il rilevamento movimento |
+   | audio_threshold | integer | Soglia per il rilevamento audio |
+   | camera_threshold | float | Soglia per il rilevamento movimento |
    | distance_threshold | integer | Soglia per il rilevamento variazione distanza |
    | video_duration | integer | Durata dei video registrati (in secondi) |
    | video_fps | integer | Frequenza dei fotogrammi video |
@@ -439,7 +439,7 @@ Il progetto sfrutta al massimo le capacità hardware dell'Arduino Nicla Vision:
    - Assegna un nome al dashboard (ad esempio "NiclaVision Control")
    - Aggiungi i seguenti widget associati alle variabili create:
      - CloudSwitch per: global_enable, camera_monitoring, audio_monitoring, distance_monitoring, record_video_enabled, send_videos_telegram
-     - Slider per: sound_threshold, motion_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
+     - Slider per: audio_threshold, camera_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
      - Value per: system_status, last_event, last_event_time
      - Messenger per: log_messages
    - Puoi organizzare tutti i widgets in un layout simile a quello nell'immagine:
@@ -547,7 +547,7 @@ Il bot Telegram supporta i seguenti comandi:
 - `/videos_off` - Disabilita la registrazione automatica di video
 
 #### Impostazioni soglie
-- `/set_motion_threshold X` - Imposta soglia movimento (0.5-50)
+- `/set_camera_threshold X` - Imposta soglia movimento (0.5-50)
 - `/set_audio_threshold X` - Imposta soglia audio (500-20000)
 - `/set_distance_threshold X` - Imposta soglia distanza (10-2000)
 

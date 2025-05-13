@@ -139,16 +139,16 @@ class TelegramManager:
             
         try:
             # Send text message
-            self.send_message_to_all("🚨 Motion detected!")
+            self.send_message_to_all("🚨 Camera detected!")
             
             # Send photo if available and photo sending is enabled
             if photo_path and self.config.SEND_PHOTOS_TELEGRAM:
-                self.send_photo_to_all(photo_path, "📸 Motion detection photo")
+                self.send_photo_to_all(photo_path, "📸 Camera detection photo")
             
             # Send video if available and video sending is enabled
             if video_path and self.config.SEND_VIDEOS_TELEGRAM:
                 self.send_message_to_all("🎥 Video recording completed!")
-                self.send_video_to_all(video_path, "🎥 Motion detection video")
+                self.send_video_to_all(video_path, "🎥 Camera detection video")
                 
             return True
         except Exception as e:
@@ -156,44 +156,61 @@ class TelegramManager:
             return False
     
     def notify_audio_event(self, level, photo_path=None, video_path=None):
-        """Notifies an audio detection event with improved error handling and sequencing"""
+        """
+        Notifica un evento di rilevazione audio con gestione ottimizzata.
+        Questa funzione segue lo stesso pattern di notify_motion_event e notify_distance_event.
+        
+        Args:
+            level: Livello audio rilevato
+            photo_path: Percorso della foto (opzionale)
+            video_path: Percorso del video (opzionale)
+        
+        Returns:
+            bool: True se la notifica è stata inviata con successo, False altrimenti
+        """
         if not self.is_initialized:
             return False
             
         try:
-            # Prioritize notifications: first notification, then media
-            # This ensures better sequence of messages
-            first_message = f"🔊 Sound detected! Level: {int(level)}"
+            # Prepara il messaggio con il livello audio
+            message = f"🔊 Sound detected! Level: {level}"
             
-            # First send the notification message to all users
-            success = self.send_message_to_all(first_message)
+            # Invia la notifica principale a tutti gli utenti autorizzati
+            success = self.send_message_to_all(message)
             if not success:
                 return False
                 
-            # Add a small delay between sending text and media to avoid overwhelming the network
-            time.sleep(1)
+            # Piccola pausa tra l'invio del testo e dei media per evitare sovraccarichi
+            time.sleep(0.5)
             
-            # Send photo if available and photo sending is enabled
-            photo_success = True
+            # Invia la foto se disponibile e se l'invio foto è abilitato
+            photo_sent = True
             if photo_path and self.config.SEND_PHOTOS_TELEGRAM:
-                photo_success = self.send_photo_to_all(photo_path, f"🔊 Audio detection photo - Level: {int(level)}")
-                # Add delay before video
-                time.sleep(1)
-            
-            # Send video if available and video sending is enabled
-            video_success = True
-            if video_path and self.config.SEND_VIDEOS_TELEGRAM:
-                # Notification about video
-                self.send_message_to_all("🎥 Audio video recording completed!")
-                # Small delay 
-                time.sleep(1)
-                # Now send the actual video
-                video_success = self.send_video_to_all(video_path, f"🎥 Audio detection video - Level: {int(level)}")
+                caption = f"🔊 Audio detection photo - Level: {level}"
+                photo_sent = self.send_photo_to_all(photo_path, caption)
                 
-            # Return overall success
-            return success and photo_success and video_success
+                # Pausa prima dell'invio del video
+                if photo_sent and video_path:
+                    time.sleep(0.5)
+            
+            # Invia il video se disponibile e se l'invio video è abilitato
+            video_sent = True
+            if video_path and self.config.SEND_VIDEOS_TELEGRAM:
+                # Prima invia una notifica di completamento registrazione
+                self.send_message_to_all("🎥 Sound video recording completed!")
+                
+                # Breve pausa
+                time.sleep(0.5)
+                
+                # Invia il video effettivo
+                caption = f"🎥 Sound detection video - Level: {level}"
+                video_sent = self.send_video_to_all(video_path, caption)
+            
+            # Restituisci lo stato complessivo dell'operazione
+            return success and photo_sent and video_sent
+            
         except Exception as e:
-            logger.error(f"Error notifying audio event: {e}")
+            logger.error(f"Error sending audio event notification: {e}")
             return False
     
     def notify_distance_event(self, distance, photo_path=None, video_path=None):
@@ -279,7 +296,7 @@ class TelegramManager:
                     "/videos_off - Disable automatic video recording\n\n"
                     
                     "*Threshold settings:*\n"
-                    "/set_motion_threshold X - Set motion threshold (0.5-50)\n"
+                    "/set_camera_threshold X - Set motion threshold (0.5-50)\n"
                     "/set_audio_threshold X - Set audio threshold (500-20000)\n"
                     "/set_distance_threshold X - Set distance threshold (10-2000)\n\n"
                     
@@ -316,7 +333,7 @@ class TelegramManager:
                     f"Distance monitoring: {'🟢 Active' if self.config.DISTANCE_MONITORING_ENABLED else '🔴 Disabled'}\n"
                     f"Automatic photo sending: {'🟢 Active' if self.config.SEND_PHOTOS_TELEGRAM else '🔴 Disabled'}\n"
                     f"Video recording: {'🟢 Enabled' if self.config.RECORD_VIDEO_ENABLED else '🔴 Disabled'}\n\n"
-                    f"Motion threshold: {self.config.MOTION_THRESHOLD}%\n"
+                    f"Camera threshold: {self.config.MOTION_THRESHOLD}%\n"
                     f"Audio threshold: {self.config.SOUND_THRESHOLD}\n"
                     f"Distance threshold: {self.config.DISTANCE_THRESHOLD}mm\n"
                 )
@@ -360,22 +377,53 @@ class TelegramManager:
                 else:
                     bot.send_message(chat_id, "❌ Unable to disable camera: Cloud manager not available")
 
-            # Enable/disable audio
+            # Aggiorna i comandi audio_on e audio_off per il Telegram Manager
+
+            # Comando audio_on
             elif text == "/audio_on":
                 if self.cloud_manager:
+                    # Prima di attivare, interrompi l'audio detector esistente se necessario
+                    audio_was_active = False
+                    if 'audio_detector' in globals() and audio_detector and audio_detector.audio_streaming_active:
+                        audio_was_active = True
+                        audio_detector.stop_audio_detection()
+                        time.sleep(0.3)  # Pausa più lunga per stabilizzazione completa
+                    
+                    # Aggiorna lo stato di configurazione
                     self.config.AUDIO_MONITORING_ENABLED = True
                     self.cloud_manager.sync_to_cloud()
-                    bot.send_message(chat_id, "🎤 Audio monitoring enabled")
+                    
+                    # Log dell'operazione
                     logger.info("Audio monitoring enabled via Telegram")
+                    
+                    # Invia risposta all'utente
+                    bot.send_message(chat_id, "🎤 Audio monitoring enabled")
                 else:
                     bot.send_message(chat_id, "❌ Unable to enable audio: Cloud manager not available")
 
+            # Comando audio_off
             elif text == "/audio_off":
                 if self.cloud_manager:
+                    # Prima di disattivare, ferma esplicitamente l'audio detector
+                    if 'audio_detector' in globals() and audio_detector and audio_detector.audio_streaming_active:
+                        # Notifica che stiamo fermando il detector
+                        logger.info("Stopping audio detector from Telegram command")
+                        
+                        # Esegui lo stop
+                        audio_detector.stop_audio_detection()
+                        
+                        # Pausa per stabilizzazione
+                        time.sleep(0.3)
+                    
+                    # Aggiorna lo stato di configurazione
                     self.config.AUDIO_MONITORING_ENABLED = False
                     self.cloud_manager.sync_to_cloud()
-                    bot.send_message(chat_id, "🚫 Audio monitoring disabled")
+                    
+                    # Log dell'operazione
                     logger.info("Audio monitoring disabled via Telegram")
+                    
+                    # Invia risposta all'utente
+                    bot.send_message(chat_id, "🚫 Audio monitoring disabled")
                 else:
                     bot.send_message(chat_id, "❌ Unable to disable audio: Cloud manager not available")
 
@@ -399,7 +447,7 @@ class TelegramManager:
                     bot.send_message(chat_id, "❌ Unable to disable distance: Cloud manager not available")
 
             # Threshold settings
-            elif text.startswith("/set_motion_threshold "):
+            elif text.startswith("/set_camera_threshold "):
                 self._set_threshold(bot, chat_id, "motion", text)
 
             elif text.startswith("/set_audio_threshold "):
@@ -560,21 +608,23 @@ class TelegramManager:
     
     def _set_threshold(self, bot, chat_id, threshold_type, command):
         """
-        Sets a detection threshold
+        Imposta una soglia di rilevazione
         
         Args:
-            bot: Telegram bot instance
-            chat_id: Telegram chat ID
-            threshold_type: Type of threshold ("motion", "audio", "distance")
-            command: Full command received
+            bot: Istanza del bot Telegram
+            chat_id: ID chat Telegram
+            threshold_type: Tipo di soglia ("motion", "audio", "distance")
+            command: Comando completo ricevuto
         """
+        global cloud_manager, audio_detector
+
         try:
-            # Extract the value from the command
+            # Estrai il valore dal comando
             value = float(command.split(" ")[1])
 
-            if self.cloud_manager:
+            if cloud_manager:
                 if threshold_type == "motion":
-                    # Validate and set the threshold
+                    # Valida e imposta la soglia
                     validated = self.config.validate_threshold(
                         value,
                         self.config.MOTION_THRESHOLD_MIN,
@@ -583,12 +633,12 @@ class TelegramManager:
                     )
 
                     self.config.MOTION_THRESHOLD = validated
-                    self.cloud_manager.sync_to_cloud()
-                    bot.send_message(chat_id, f"📊 Motion threshold set to {validated}%")
-                    logger.info(f"Motion threshold changed to {validated}% via Telegram")
+                    cloud_manager.sync_to_cloud()
+                    bot.send_message(chat_id, f"📊 Camera threshold set to {validated}%")
+                    logger.info(f"Camera threshold changed to {validated}% via Telegram")
 
                 elif threshold_type == "audio":
-                    # Validate and set the threshold
+                    # Valida e imposta la soglia
                     validated = self.config.validate_threshold(
                         value,
                         self.config.SOUND_THRESHOLD_MIN,
@@ -596,13 +646,33 @@ class TelegramManager:
                         self.config.SOUND_THRESHOLD
                     )
 
-                    self.config.SOUND_THRESHOLD = validated
-                    self.cloud_manager.sync_to_cloud()
+                    # Ferma temporaneamente l'audio detector se attivo
+                    audio_was_active = False
+                    if audio_detector and audio_detector.audio_streaming_active:
+                        audio_was_active = True
+                        audio_detector.stop_audio_detection()
+                        time.sleep(0.2)  # Pausa per stabilizzazione
+                    
+                    # Aggiorna la soglia usando il metodo sicuro
+                    if audio_detector:
+                        audio_detector.update_threshold(validated)
+                    else:
+                        # Fallback all'approccio standard
+                        self.config.SOUND_THRESHOLD = validated
+                    
+                    # Sincronizza con il cloud
+                    cloud_manager.sync_to_cloud()
+                    
+                    # Riavvia l'audio detector se era attivo
+                    if audio_was_active and self.config.AUDIO_MONITORING_ENABLED and self.config.GLOBAL_ENABLE:
+                        time.sleep(0.2)  # Pausa per stabilizzazione
+                        audio_detector.start_audio_detection()
+                    
                     bot.send_message(chat_id, f"🔊 Audio threshold set to {validated}")
                     logger.info(f"Audio threshold changed to {validated} via Telegram")
 
                 elif threshold_type == "distance":
-                    # Validate and set the threshold
+                    # Valida e imposta la soglia
                     validated = self.config.validate_threshold(
                         value,
                         self.config.DISTANCE_THRESHOLD_MIN,
@@ -611,14 +681,14 @@ class TelegramManager:
                     )
 
                     self.config.DISTANCE_THRESHOLD = validated
-                    self.cloud_manager.sync_to_cloud()
+                    cloud_manager.sync_to_cloud()
                     bot.send_message(chat_id, f"📏 Distance threshold set to {validated}mm")
                     logger.info(f"Distance threshold changed to {validated}mm via Telegram")
 
                 else:
                     bot.send_message(chat_id, "❌ Invalid threshold type")
             else:
-                bot.send_message(chat_id, "❌ Unable to set the threshold: Cloud manager not available")
+                bot.send_message(chat_id, "❌ Unable to set threshold: Cloud manager not available")
         except ValueError:
             bot.send_message(chat_id, "❌ Invalid value. Use a number.")
         except Exception as e:
@@ -820,7 +890,7 @@ class TelegramManager:
             
             # Threshold settings
             report.append("*Threshold Settings:*")
-            report.append(f"- Motion Threshold: {self.config.MOTION_THRESHOLD}% (min: {self.config.MOTION_THRESHOLD_MIN}, max: {self.config.MOTION_THRESHOLD_MAX})")
+            report.append(f"- Camera Threshold: {self.config.MOTION_THRESHOLD}% (min: {self.config.MOTION_THRESHOLD_MIN}, max: {self.config.MOTION_THRESHOLD_MAX})")
             report.append(f"- Audio Threshold: {self.config.SOUND_THRESHOLD} (min: {self.config.SOUND_THRESHOLD_MIN}, max: {self.config.SOUND_THRESHOLD_MAX})")
             report.append(f"- Distance Threshold: {self.config.DISTANCE_THRESHOLD}mm (min: {self.config.DISTANCE_THRESHOLD_MIN}, max: {self.config.DISTANCE_THRESHOLD_MAX})")
             report.append(f"- Inhibition Period: {self.config.INHIBIT_PERIOD}s (min: {self.config.INHIBIT_PERIOD_MIN}, max: {self.config.INHIBIT_PERIOD_MAX})")

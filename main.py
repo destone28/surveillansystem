@@ -15,7 +15,6 @@ from file_manager import FileManager
 from photo_manager import PhotoManager
 from cloud_manager import CloudManager
 from video_manager import VideoManager
-# Replaced TelegramBot import with the new TelegramManager
 from telegram_manager import TelegramManager
 
 # LEDs for visual feedback
@@ -30,25 +29,28 @@ distance_detector = None
 cloud_manager = None
 photo_manager = None
 file_manager = None
-telegram_manager = None  # Replaced telegram_bot with telegram_manager
+telegram_manager = None
 video_manager = None
 loop = None
 
 # Control variables for the loop
 last_motion_time = 0
+last_audio_time = 0
 last_distance_time = 0
 last_sync_time = 0
 last_check_state_time = 0
 last_cloud_sync_time = 0
 last_distance_recalibration = 0
+last_audio_recalibration = 0
 main_interval = 100  # Interval in milliseconds for the main loop execution
 
 # Asynchronous task that runs the main loop
 async def main_loop():
     global camera_detector, audio_detector, distance_detector
-    global cloud_manager, last_motion_time, last_distance_time
+    global cloud_manager, last_motion_time, last_audio_time, last_distance_time
     global last_sync_time, last_check_state_time, last_cloud_sync_time
-    global last_distance_recalibration, video_manager, telegram_manager
+    global last_distance_recalibration, last_audio_recalibration
+    global video_manager, telegram_manager
 
     print("Starting the main loop...")
 
@@ -90,24 +92,26 @@ async def main_loop():
                     # Audio detector
                     if Config.AUDIO_MONITORING_ENABLED:
                         if not audio_detector:
-                            audio_detector = AudioDetector(Config, file_manager, photo_manager)
-                            audio_detector.start_audio_detection()
-                            if cloud_manager:
-                                audio_detector.set_cloud_manager(cloud_manager)
-                            if telegram_manager:
-                                audio_detector.set_telegram_manager(telegram_manager)
-                            if video_manager:  # Added reference to video manager
-                                audio_detector.set_video_manager(video_manager)
-                            logger.info("Audio detector initialized and started (on-demand)")
+                            audio_detector = AudioDetector(Config)
+                            if audio_detector.start_audio_detection():
+                                logger.info("Audio detector initialized and started (on-demand)")
+                            else:
+                                logger.error("Failed to start audio detection")
                     else:
                         if audio_detector:
-                            # Fermiamo correttamente la rilevazione audio
-                            if audio_detector.audio_streaming_active:
+                            # Stop audio detection properly
+                            if hasattr(audio_detector, 'audio_streaming_active') and audio_detector.audio_streaming_active:
+                                logger.info("Stopping audio detector due to configuration change")
                                 audio_detector.stop_audio_detection()
-                                # Piccola pausa per garantire che tutte le operazioni in sospeso siano completate
-                                time.sleep(0.2)
+                                # Pause to ensure all pending operations are completed
+                                time.sleep(0.3)
+                            
+                            # Remove reference
                             audio_detector = None
                             logger.info("Audio detector deactivated")
+                            
+                            # Force garbage collection
+                            gc.collect()
 
                     # Distance detector
                     if Config.DISTANCE_MONITORING_ENABLED:
@@ -133,7 +137,8 @@ async def main_loop():
                         logger.info("Camera detector deactivated (global disable)")
 
                     if audio_detector:
-                        audio_detector.stop_audio_detection()
+                        if hasattr(audio_detector, 'stop_audio_detection'):
+                            audio_detector.stop_audio_detection()
                         audio_detector = None
                         logger.info("Audio detector deactivated (global disable)")
 
@@ -146,7 +151,7 @@ async def main_loop():
             if Config.CAMERA_MONITORING_ENABLED and camera_detector:
                 if current_time - last_motion_time > Config.INHIBIT_PERIOD:
                     if camera_detector.check_motion():
-                        event_msg = "Motion detected, capturing photo..."
+                        event_msg = "Camera detected, capturing photo..."
                         logger.info(event_msg)
                         green_led.on()
                         time.sleep(0.1)
@@ -171,7 +176,7 @@ async def main_loop():
 
                             # Cloud notification
                             if cloud_manager:
-                                cloud_manager.notify_event("Motion", "Camera trigger")
+                                cloud_manager.notify_event("Camera", "Camera trigger")
 
                             # Video recording if enabled
                             video_path = None
@@ -182,6 +187,47 @@ async def main_loop():
                             # Telegram notification
                             if telegram_manager:
                                 telegram_manager.notify_motion_event(telegram_photo_path, video_path)
+
+            # For audio sound detection
+            if Config.AUDIO_MONITORING_ENABLED and audio_detector and audio_detector.audio_streaming_active:
+                if current_time - last_audio_time > Config.INHIBIT_PERIOD:
+                    # Use the same pattern as camera and distance detection
+                    sound_detected, level = audio_detector.check_sound()
+                    
+                    if sound_detected:
+                        event_msg = f"Sound detected: level={level:.1f}, capturing photo..."
+                        logger.info(event_msg)
+                        green_led.on()
+                        time.sleep(0.1)
+                        green_led.off()
+                        
+                        # Capture photo (standard for local storage)
+                        photo_path = None
+                        telegram_photo_path = None
+                        
+                        # First save a normal photo for local storage
+                        if photo_manager.capture_save_photo("audio_alert", "sound", int(level)):
+                            photo_path = photo_manager.last_photo_path
+                            last_audio_time = current_time
+                            
+                            # Now capture a photo optimized for Telegram if photo sending is enabled
+                            if Config.SEND_PHOTOS_TELEGRAM:
+                                if photo_manager.capture_telegram_photo("audio_alert", f"tg_sound", int(level)):
+                                    telegram_photo_path = photo_manager.last_photo_path
+                            
+                            # Cloud notification
+                            if cloud_manager:
+                                cloud_manager.notify_event("Audio", f"Level: {int(level)}")
+                            
+                            # Video recording if enabled
+                            video_path = None
+                            if Config.RECORD_VIDEO_ENABLED:
+                                if video_manager.record_video("audio", f"sound_{int(level)}"):
+                                    video_path = video_manager.last_video_path
+                            
+                            # Telegram notification
+                            if telegram_manager:
+                                telegram_manager.notify_audio_event(int(level), telegram_photo_path, video_path)
 
             # For distance variation detection
             if Config.DISTANCE_MONITORING_ENABLED and distance_detector and distance_detector.distance_enabled:

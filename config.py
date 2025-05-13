@@ -16,7 +16,7 @@ class Config:
 
     # Camera settings
     MOTION_THRESHOLD = 5       # Threshold for motion detection (%)
-    MOTION_THRESHOLD_MIN = 0.5 # Minimum value
+    MOTION_THRESHOLD_MIN = 1   # Minimum value
     MOTION_THRESHOLD_MAX = 50  # Maximum value
     FRAME_SIZE = sensor.QVGA   # Resolution for motion detection
     PHOTO_SIZE = sensor.QVGA   # Resolution for photos
@@ -24,12 +24,12 @@ class Config:
     PHOTO_QUALITY = 90         # JPEG image quality (0-100)
 
     # Audio settings
-    SOUND_THRESHOLD = 30000    # Increased threshold to reduce false positives
-    SOUND_THRESHOLD_MIN = 5000  
+    SOUND_THRESHOLD = 10000    # Increased threshold to reduce false positives
+    SOUND_THRESHOLD_MIN = 0
     SOUND_THRESHOLD_MAX = 50000
     MAX_AUDIO_PHOTOS = 5     # Reduced to save memory
     AUDIO_GAIN = 0           # Reduced to lower sensitivity
-    
+
     # Distance settings
     DISTANCE_THRESHOLD = 100   # Tolerance threshold in mm (reduced for higher sensitivity)
     DISTANCE_THRESHOLD_MIN = 10 # Minimum value
