@@ -24,12 +24,12 @@ class Config:
     PHOTO_QUALITY = 90         # JPEG image quality (0-100)
 
     # Audio settings
-    SOUND_THRESHOLD = 2812     # Threshold for sound detection
-    SOUND_THRESHOLD_MIN = 500  # Suggested minimum value
-    SOUND_THRESHOLD_MAX = 20000 # Suggested maximum value
-    MAX_AUDIO_PHOTOS = 20      # Maximum number of photos
-    AUDIO_GAIN = 24            # Audio gain in dB
-
+    SOUND_THRESHOLD = 30000    # Increased threshold to reduce false positives
+    SOUND_THRESHOLD_MIN = 5000  
+    SOUND_THRESHOLD_MAX = 50000
+    MAX_AUDIO_PHOTOS = 5     # Reduced to save memory
+    AUDIO_GAIN = 0           # Reduced to lower sensitivity
+    
     # Distance settings
     DISTANCE_THRESHOLD = 100   # Tolerance threshold in mm (reduced for higher sensitivity)
     DISTANCE_THRESHOLD_MIN = 10 # Minimum value
@@ -42,15 +42,15 @@ class Config:
     VIDEO_DURATION_MAX = 30    # Maximum duration
     VIDEO_FPS = 15             # Frames per second
     VIDEO_FPS_MIN = 5          # Minimum FPS
-    VIDEO_FPS_MAX = 30         # Maximum FPS
+    VIDEO_FPS_MAX = 15         # Maximum FPS
     VIDEO_QUALITY = 50         # Video quality (0-100)
     VIDEO_QUALITY_MIN = 10     # Minimum quality
     VIDEO_QUALITY_MAX = 100    # Maximum quality
 
     # General settings
-    INHIBIT_PERIOD = 3         # Inhibition seconds (reduced to detect more events)
-    INHIBIT_PERIOD_MIN = 1     # Minimum value
-    INHIBIT_PERIOD_MAX = 30    # Maximum value
+    INHIBIT_PERIOD = 10       # Increased inhibition seconds to reduce frequency of detection
+    INHIBIT_PERIOD_MIN = 5    # Increased minimum inhibition period
+    INHIBIT_PERIOD_MAX = 30
 
     # System intervals
     FILESYSTEM_SYNC_INTERVAL = 30   # Filesystem sync interval (seconds)

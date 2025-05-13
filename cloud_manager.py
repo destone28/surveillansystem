@@ -301,13 +301,13 @@ class CloudManager:
                 self.client["camera_monitoring"] = self.config.CAMERA_MONITORING_ENABLED
                 self.client["audio_monitoring"] = self.config.AUDIO_MONITORING_ENABLED
                 self.client["distance_monitoring"] = self.config.DISTANCE_MONITORING_ENABLED
-                self.client["sound_threshold"] = self.config.SOUND_THRESHOLD
-                self.client["motion_threshold"] = self.config.MOTION_THRESHOLD
-                self.client["distance_threshold"] = self.config.DISTANCE_THRESHOLD
-                self.client["video_duration"] = self.config.VIDEO_DURATION
-                self.client["video_fps"] = self.config.VIDEO_FPS
-                self.client["video_quality"] = self.config.VIDEO_QUALITY
-                self.client["inhibit_period"] = self.config.INHIBIT_PERIOD
+                self.client["sound_threshold"] = int(self.config.SOUND_THRESHOLD)
+                self.client["motion_threshold"] = int(self.config.MOTION_THRESHOLD)
+                self.client["distance_threshold"] = int(self.config.DISTANCE_THRESHOLD)
+                self.client["video_duration"] = int(self.config.VIDEO_DURATION)
+                self.client["video_fps"] = int(self.config.VIDEO_FPS)
+                self.client["video_quality"] = int(self.config.VIDEO_QUALITY)
+                self.client["inhibit_period"] = int(self.config.INHIBIT_PERIOD)
                 self.client["record_video_enabled"] = self.config.RECORD_VIDEO_ENABLED
                 self.client["send_videos_telegram"] = self.config.SEND_VIDEOS_TELEGRAM
 
@@ -400,38 +400,38 @@ class CloudManager:
             logger.error(f"Error callback distance monitoring: {e}")
 
     def _on_sound_threshold_change(self, client, value):
-        """Callback when the sound threshold changes"""
-        try:
-            validated_value = self.config.validate_threshold(
-                value,
+        """Callback when sound threshold is changed from the cloud"""
+        global audio_detector  # Avremo bisogno di rendere questo accessibile
+        
+        if value is not None:
+            validated = self.config.validate_threshold(
+                value, 
                 self.config.SOUND_THRESHOLD_MIN,
                 self.config.SOUND_THRESHOLD_MAX,
                 self.config.SOUND_THRESHOLD
             )
-
-            if validated_value != value:
-                logger.warning(f"Sound threshold corrected from {value} to {validated_value}")
-                # Also correct the value in the cloud
-                client["sound_threshold"] = validated_value
-
-            self.config.SOUND_THRESHOLD = validated_value
-            msg = f"Sound threshold set to {validated_value}"
-            logger.info(msg)
-
-            # Temporarily update status and log
-            temp_status = f"Sound threshold set to {validated_value}"
-            client["system_status"] = temp_status
-            self.add_log_message(msg)
-
-            # Update required in synchronous mode
-            client.update()
-
-            # After a while, restore the normal status
-            time.sleep(0.5)
-            self._update_system_status()
-            client.update()
-        except Exception as e:
-            logger.error(f"Error callback sound threshold: {e}")
+            
+            # Se l'audio detector esiste, usiamo il metodo sicuro per aggiornare la soglia
+            if 'audio_detector' in globals() and audio_detector is not None:
+                # Ferma temporaneamente l'audio se attivo
+                was_active = False
+                if audio_detector.audio_streaming_active:
+                    was_active = True
+                    audio_detector.stop_audio_detection()
+                    time.sleep(0.2)  # Piccola pausa per stabilizzazione
+                
+                # Aggiorna la soglia
+                audio_detector.update_threshold(validated)
+                
+                # Riattiva l'audio se era attivo
+                if was_active and self.config.AUDIO_MONITORING_ENABLED and self.config.GLOBAL_ENABLE:
+                    time.sleep(0.2)  # Piccola pausa per stabilizzazione
+                    audio_detector.start_audio_detection()
+            else:
+                # Fallback all'approccio standard
+                self.config.SOUND_THRESHOLD = validated
+                
+            logger.info(f"Sound threshold changed to {validated}")
 
     def _on_motion_threshold_change(self, client, value):
         """Callback when the motion threshold changes"""
@@ -768,35 +768,33 @@ class CloudManager:
             logger.error(f"Error callback telegram photo quality: {e}")
 
     def _on_audio_gain_change(self, client, value):
-        """Callback when the audio gain changes"""
-        try:
-            validated_value = self.config.validate_threshold(
+        """Callback when audio gain is changed from the cloud"""
+        global audio_detector  # Avremo bisogno di rendere questo accessibile
+        
+        if value is not None:
+            validated = self.config.validate_threshold(
                 value, 0, 48, self.config.AUDIO_GAIN
             )
-
-            if validated_value != value:
-                logger.warning(f"Audio gain corrected from {value} to {validated_value}")
-                # Also correct the value in the cloud
-                client["audio_gain"] = validated_value
-
-            self.config.AUDIO_GAIN = validated_value
-            msg = f"Audio gain set to {validated_value}dB"
-            logger.info(msg)
-
-            # Temporarily update status and log
-            temp_status = f"Audio gain set to {validated_value}dB"
-            client["system_status"] = temp_status
-            self.add_log_message(msg)
-
-            # Update required in synchronous mode
-            client.update()
-
-            # After a while, restore the normal status
-            time.sleep(0.5)
-            self._update_system_status()
-            client.update()
-        except Exception as e:
-            logger.error(f"Error callback audio gain: {e}")
+            
+            self.config.AUDIO_GAIN = validated
+            logger.info(f"Audio gain changed to {validated}dB from cloud")
+            
+            # Se l'audio detector esiste, dobbiamo reinizializzarlo per applicare il nuovo gain
+            if 'audio_detector' in globals() and audio_detector is not None:
+                # Ferma l'audio se attivo
+                was_active = False
+                if audio_detector.audio_streaming_active:
+                    was_active = True
+                    audio_detector.stop_audio_detection()
+                    time.sleep(0.2)  # Piccola pausa per stabilizzazione
+                
+                # Reinizializza l'audio con il nuovo gain
+                audio_detector.init_audio()
+                
+                # Riattiva l'audio se era attivo
+                if was_active and self.config.AUDIO_MONITORING_ENABLED and self.config.GLOBAL_ENABLE:
+                    time.sleep(0.2)  # Piccola pausa per stabilizzazione
+                    audio_detector.start_audio_detection()
 
     def _on_distance_recalibration_change(self, client, value):
         """Callback when the distance recalibration interval changes"""

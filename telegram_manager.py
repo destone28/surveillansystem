@@ -84,7 +84,7 @@ class TelegramManager:
         try:
             for chat_id in self.authorized_users:
                 if chat_id != "*":  # Ignore the asterisk
-                    self.bot.send(chat_id, "🟢 Nicla Vision monitoring system started and ready!")
+                    self.bot.send_message(chat_id, "🟢 Nicla Vision monitoring system started and ready!")
             return True
         except Exception as e:
             logger.error(f"Error sending startup message: {e}")
@@ -98,7 +98,7 @@ class TelegramManager:
         try:
             for chat_id in self.authorized_users:
                 if chat_id != "*":  # Ignore the asterisk
-                    self.bot.send(chat_id, message)
+                    self.bot.send_message(chat_id, message)
             return True
         except Exception as e:
             logger.error(f"Error sending message to all: {e}")
@@ -156,24 +156,42 @@ class TelegramManager:
             return False
     
     def notify_audio_event(self, level, photo_path=None, video_path=None):
-        """Notifies an audio detection event"""
+        """Notifies an audio detection event with improved error handling and sequencing"""
         if not self.is_initialized:
             return False
             
         try:
-            # Send text message
-            self.send_message_to_all(f"🔊 Sound detected! Level: {int(level)}")
+            # Prioritize notifications: first notification, then media
+            # This ensures better sequence of messages
+            first_message = f"🔊 Sound detected! Level: {int(level)}"
+            
+            # First send the notification message to all users
+            success = self.send_message_to_all(first_message)
+            if not success:
+                return False
+                
+            # Add a small delay between sending text and media to avoid overwhelming the network
+            time.sleep(1)
             
             # Send photo if available and photo sending is enabled
+            photo_success = True
             if photo_path and self.config.SEND_PHOTOS_TELEGRAM:
-                self.send_photo_to_all(photo_path, f"🔊 Audio detection photo - Level: {int(level)}")
+                photo_success = self.send_photo_to_all(photo_path, f"🔊 Audio detection photo - Level: {int(level)}")
+                # Add delay before video
+                time.sleep(1)
             
             # Send video if available and video sending is enabled
+            video_success = True
             if video_path and self.config.SEND_VIDEOS_TELEGRAM:
+                # Notification about video
                 self.send_message_to_all("🎥 Audio video recording completed!")
-                self.send_video_to_all(video_path, f"🎥 Audio detection video - Level: {int(level)}")
+                # Small delay 
+                time.sleep(1)
+                # Now send the actual video
+                video_success = self.send_video_to_all(video_path, f"🎥 Audio detection video - Level: {int(level)}")
                 
-            return True
+            # Return overall success
+            return success and photo_success and video_success
         except Exception as e:
             logger.error(f"Error notifying audio event: {e}")
             return False
@@ -222,7 +240,7 @@ class TelegramManager:
 
         # Check if the user is authorized
         if not self._is_authorized(chat_id):
-            bot.send(chat_id, "⛔ You are not authorized to use this bot.")
+            bot.send_message(chat_id, "⛔ You are not authorized to use this bot.")
             logger.warning(f"Unauthorized user: {chat_id}")
             return
 
@@ -230,7 +248,7 @@ class TelegramManager:
         try:
             # Start command
             if text == "/start":
-                bot.send(chat_id,
+                bot.send_message(chat_id,
                     "🤖 *Welcome to the Nicla Vision monitoring system!*\n\n"
                     "You can control the system with the following commands:\n"
                     "/status - View the system status\n"
@@ -242,7 +260,7 @@ class TelegramManager:
 
             # Help command
             elif text == "/help":
-                bot.send(chat_id,
+                bot.send_message(chat_id,
                     "📋 *Available commands:*\n\n"
                     "/status - Show the system status\n"
                     "/enable - Enable global monitoring\n"
@@ -302,83 +320,83 @@ class TelegramManager:
                     f"Audio threshold: {self.config.SOUND_THRESHOLD}\n"
                     f"Distance threshold: {self.config.DISTANCE_THRESHOLD}mm\n"
                 )
-                bot.send(chat_id, status_msg)
+                bot.send_message(chat_id, status_msg)
 
             # Enable/disable global
             elif text == "/enable":
                 if self.cloud_manager:
                     self.config.GLOBAL_ENABLE = True
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, "✅ Monitoring system enabled")
+                    bot.send_message(chat_id, "✅ Monitoring system enabled")
                     logger.info("System enabled via Telegram")
                 else:
-                    bot.send(chat_id, "❌ Unable to enable: Cloud manager not available")
+                    bot.send_message(chat_id, "❌ Unable to enable: Cloud manager not available")
 
             elif text == "/disable":
                 if self.cloud_manager:
                     self.config.GLOBAL_ENABLE = False
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, "🔴 Monitoring system disabled")
+                    bot.send_message(chat_id, "🔴 Monitoring system disabled")
                     logger.info("System disabled via Telegram")
                 else:
-                    bot.send(chat_id, "❌ Unable to disable: Cloud manager not available")
+                    bot.send_message(chat_id, "❌ Unable to disable: Cloud manager not available")
 
             # Enable/disable camera
             elif text == "/camera_on":
                 if self.cloud_manager:
                     self.config.CAMERA_MONITORING_ENABLED = True
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, "📸 Camera monitoring enabled")
+                    bot.send_message(chat_id, "📸 Camera monitoring enabled")
                     logger.info("Camera monitoring enabled via Telegram")
                 else:
-                    bot.send(chat_id, "❌ Unable to enable camera: Cloud manager not available")
+                    bot.send_message(chat_id, "❌ Unable to enable camera: Cloud manager not available")
 
             elif text == "/camera_off":
                 if self.cloud_manager:
                     self.config.CAMERA_MONITORING_ENABLED = False
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, "🚫 Camera monitoring disabled")
+                    bot.send_message(chat_id, "🚫 Camera monitoring disabled")
                     logger.info("Camera monitoring disabled via Telegram")
                 else:
-                    bot.send(chat_id, "❌ Unable to disable camera: Cloud manager not available")
+                    bot.send_message(chat_id, "❌ Unable to disable camera: Cloud manager not available")
 
             # Enable/disable audio
             elif text == "/audio_on":
                 if self.cloud_manager:
                     self.config.AUDIO_MONITORING_ENABLED = True
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, "🎤 Audio monitoring enabled")
+                    bot.send_message(chat_id, "🎤 Audio monitoring enabled")
                     logger.info("Audio monitoring enabled via Telegram")
                 else:
-                    bot.send(chat_id, "❌ Unable to enable audio: Cloud manager not available")
+                    bot.send_message(chat_id, "❌ Unable to enable audio: Cloud manager not available")
 
             elif text == "/audio_off":
                 if self.cloud_manager:
                     self.config.AUDIO_MONITORING_ENABLED = False
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, "🚫 Audio monitoring disabled")
+                    bot.send_message(chat_id, "🚫 Audio monitoring disabled")
                     logger.info("Audio monitoring disabled via Telegram")
                 else:
-                    bot.send(chat_id, "❌ Unable to disable audio: Cloud manager not available")
+                    bot.send_message(chat_id, "❌ Unable to disable audio: Cloud manager not available")
 
             # Enable/disable distance sensor
             elif text == "/distance_on":
                 if self.cloud_manager:
                     self.config.DISTANCE_MONITORING_ENABLED = True
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, "📏 Distance monitoring enabled")
+                    bot.send_message(chat_id, "📏 Distance monitoring enabled")
                     logger.info("Distance monitoring enabled via Telegram")
                 else:
-                    bot.send(chat_id, "❌ Unable to enable distance: Cloud manager not available")
+                    bot.send_message(chat_id, "❌ Unable to enable distance: Cloud manager not available")
 
             elif text == "/distance_off":
                 if self.cloud_manager:
                     self.config.DISTANCE_MONITORING_ENABLED = False
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, "🚫 Distance monitoring disabled")
+                    bot.send_message(chat_id, "🚫 Distance monitoring disabled")
                     logger.info("Distance monitoring disabled via Telegram")
                 else:
-                    bot.send(chat_id, "❌ Unable to disable distance: Cloud manager not available")
+                    bot.send_message(chat_id, "❌ Unable to disable distance: Cloud manager not available")
 
             # Threshold settings
             elif text.startswith("/set_motion_threshold "):
@@ -392,7 +410,7 @@ class TelegramManager:
 
             # Instant photo command
             elif text == "/photo" or text == "/foto":
-                bot.send(chat_id, "📸 Taking an instant photo...")
+                bot.send_message(chat_id, "📸 Taking an instant photo...")
 
                 try:
                     # Take a photo optimized for Telegram
@@ -407,24 +425,24 @@ class TelegramManager:
                             logger.info(f"Instant photo sent to chat_id {chat_id}")
                         else:
                             logger.error("Error sending the photo")
-                            bot.send(chat_id, "⚠️ Issues sending the photo, but the image was captured")
+                            bot.send_message(chat_id, "⚠️ Issues sending the photo, but the image was captured")
                     else:
-                        bot.send(chat_id, "❌ Error: unable to take the photo")
+                        bot.send_message(chat_id, "❌ Error: unable to take the photo")
                 except Exception as e:
                     logger.error(f"Error taking instant photo: {e}")
-                    bot.send(chat_id, f"❌ Error while taking the photo: {e}")
+                    bot.send_message(chat_id, f"❌ Error while taking the photo: {e}")
 
             # Enable/disable automatic photo sending
             elif text == "/photos_on":
                 self.config.SEND_PHOTOS_TELEGRAM = True
-                bot.send(chat_id, "✅ Automatic photo sending enabled")
+                bot.send_message(chat_id, "✅ Automatic photo sending enabled")
                 logger.info(f"Automatic photo sending enabled by chat_id {chat_id}")
                 if self.cloud_manager:
                     self.cloud_manager.sync_to_cloud()
 
             elif text == "/photos_off":
                 self.config.SEND_PHOTOS_TELEGRAM = False
-                bot.send(chat_id, "🚫 Automatic photo sending disabled")
+                bot.send_message(chat_id, "🚫 Automatic photo sending disabled")
                 logger.info(f"Automatic photo sending disabled by chat_id {chat_id}")
                 if self.cloud_manager:
                     self.cloud_manager.sync_to_cloud()
@@ -432,27 +450,27 @@ class TelegramManager:
             # Commands for video management
             elif text == "/videos_on":
                 self.config.RECORD_VIDEO_ENABLED = True
-                bot.send(chat_id, "✅ Video recording enabled")
+                bot.send_message(chat_id, "✅ Video recording enabled")
                 logger.info(f"Video recording enabled by chat_id {chat_id}")
                 if self.cloud_manager:
                     self.cloud_manager.sync_to_cloud()
 
             elif text == "/videos_off":
                 self.config.RECORD_VIDEO_ENABLED = False
-                bot.send(chat_id, "🚫 Video recording disabled")
+                bot.send_message(chat_id, "🚫 Video recording disabled")
                 logger.info(f"Video recording disabled by chat_id {chat_id}")
                 if self.cloud_manager:
                     self.cloud_manager.sync_to_cloud()
 
             # Instant video command
             elif text == "/video":
-                bot.send(chat_id, "🎥 Recording an instant video...")
+                bot.send_message(chat_id, "🎥 Recording an instant video...")
                 try:
                     if self.video_manager and self.video_manager.record_video("manual"):
                         video_path = self.video_manager.last_video_path
                         logger.info(f"Instant video recorded: {video_path}")
 
-                        bot.send(chat_id, "✅ Video successfully recorded! Sending...")
+                        bot.send_message(chat_id, "✅ Video successfully recorded! Sending...")
 
                         # Send the video
                         success = bot.send_video(chat_id, video_path, "🎥 Instant video requested via Telegram")
@@ -461,12 +479,12 @@ class TelegramManager:
                             logger.info(f"Instant video sent to chat_id {chat_id}")
                         else:
                             logger.error("Error sending the video")
-                            bot.send(chat_id, "⚠️ Issues sending the video, but the recording was completed")
+                            bot.send_message(chat_id, "⚠️ Issues sending the video, but the recording was completed")
                     else:
-                        bot.send(chat_id, "❌ Error: unable to record the video")
+                        bot.send_message(chat_id, "❌ Error: unable to record the video")
                 except Exception as e:
                     logger.error(f"Error recording instant video: {e}")
-                    bot.send(chat_id, f"❌ Error during video recording: {e}")
+                    bot.send_message(chat_id, f"❌ Error during video recording: {e}")
 
             # Parameter settings
             elif text.startswith("/set_video_duration "):
@@ -508,15 +526,15 @@ class TelegramManager:
             # Show settings
             elif text == "/show_settings":
                 settings_report = self._generate_settings_report()
-                bot.send(chat_id, settings_report)
+                bot.send_message(chat_id, settings_report)
 
             # Unrecognized command
             else:
-                bot.send(chat_id, "❓ Unrecognized command. Use /help to see the available commands.")
+                bot.send_message(chat_id, "❓ Unrecognized command. Use /help to see the available commands.")
 
         except Exception as e:
             logger.error(f"Error processing Telegram command: {e}")
-            bot.send(chat_id, f"❌ Error processing the command: {e}")
+            bot.send_message(chat_id, f"❌ Error processing the command: {e}")
 
         # Visual feedback
         green_led.on()
@@ -566,7 +584,7 @@ class TelegramManager:
 
                     self.config.MOTION_THRESHOLD = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"📊 Motion threshold set to {validated}%")
+                    bot.send_message(chat_id, f"📊 Motion threshold set to {validated}%")
                     logger.info(f"Motion threshold changed to {validated}% via Telegram")
 
                 elif threshold_type == "audio":
@@ -580,7 +598,7 @@ class TelegramManager:
 
                     self.config.SOUND_THRESHOLD = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"🔊 Audio threshold set to {validated}")
+                    bot.send_message(chat_id, f"🔊 Audio threshold set to {validated}")
                     logger.info(f"Audio threshold changed to {validated} via Telegram")
 
                 elif threshold_type == "distance":
@@ -594,18 +612,18 @@ class TelegramManager:
 
                     self.config.DISTANCE_THRESHOLD = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"📏 Distance threshold set to {validated}mm")
+                    bot.send_message(chat_id, f"📏 Distance threshold set to {validated}mm")
                     logger.info(f"Distance threshold changed to {validated}mm via Telegram")
 
                 else:
-                    bot.send(chat_id, "❌ Invalid threshold type")
+                    bot.send_message(chat_id, "❌ Invalid threshold type")
             else:
-                bot.send(chat_id, "❌ Unable to set the threshold: Cloud manager not available")
+                bot.send_message(chat_id, "❌ Unable to set the threshold: Cloud manager not available")
         except ValueError:
-            bot.send(chat_id, "❌ Invalid value. Use a number.")
+            bot.send_message(chat_id, "❌ Invalid value. Use a number.")
         except Exception as e:
             logger.error(f"Error setting threshold {threshold_type}: {e}")
-            bot.send(chat_id, f"❌ Error setting threshold: {e}")
+            bot.send_message(chat_id, f"❌ Error setting threshold: {e}")
     
     def _set_parameter(self, bot, chat_id, param_type, command):
         """
@@ -643,7 +661,7 @@ class TelegramManager:
                     )
                     self.config.VIDEO_DURATION = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"🎥 Video duration set to {validated}s")
+                    bot.send_message(chat_id, f"🎥 Video duration set to {validated}s")
                     logger.info(f"Video duration changed to {validated}s via Telegram")
                     
                 elif param_type == "video_fps":
@@ -655,7 +673,7 @@ class TelegramManager:
                     )
                     self.config.VIDEO_FPS = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"🎥 Video FPS set to {validated}")
+                    bot.send_message(chat_id, f"🎥 Video FPS set to {validated}")
                     logger.info(f"Video FPS changed to {validated} via Telegram")
                     
                 elif param_type == "video_quality":
@@ -667,7 +685,7 @@ class TelegramManager:
                     )
                     self.config.VIDEO_QUALITY = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"🎥 Video quality set to {validated}%")
+                    bot.send_message(chat_id, f"🎥 Video quality set to {validated}%")
                     logger.info(f"Video quality changed to {validated}% via Telegram")
                     
                 # Photo parameters
@@ -680,7 +698,7 @@ class TelegramManager:
                     )
                     self.config.PHOTO_QUALITY = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"📷 Photo quality set to {validated}%")
+                    bot.send_message(chat_id, f"📷 Photo quality set to {validated}%")
                     logger.info(f"Photo quality changed to {validated}% via Telegram")
                     
                 elif param_type == "telegram_photo_quality":
@@ -692,7 +710,7 @@ class TelegramManager:
                     )
                     self.config.TELEGRAM_PHOTO_QUALITY = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"📱 Telegram photo quality set to {validated}%")
+                    bot.send_message(chat_id, f"📱 Telegram photo quality set to {validated}%")
                     logger.info(f"Telegram photo quality changed to {validated}% via Telegram")
                     
                 # Other parameters
@@ -705,7 +723,7 @@ class TelegramManager:
                     )
                     self.config.INHIBIT_PERIOD = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"⏱️ Inhibition period set to {validated}s")
+                    bot.send_message(chat_id, f"⏱️ Inhibition period set to {validated}s")
                     logger.info(f"Inhibition period changed to {validated}s via Telegram")
                     
                 elif param_type == "audio_gain":
@@ -717,7 +735,7 @@ class TelegramManager:
                     )
                     self.config.AUDIO_GAIN = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"🔊 Audio gain set to {validated}dB")
+                    bot.send_message(chat_id, f"🔊 Audio gain set to {validated}dB")
                     logger.info(f"Audio gain changed to {validated}dB via Telegram")
                     
                 elif param_type == "distance_recalibration":
@@ -729,7 +747,7 @@ class TelegramManager:
                     )
                     self.config.DISTANCE_RECALIBRATION = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"📏 Distance recalibration interval set to {validated}s")
+                    bot.send_message(chat_id, f"📏 Distance recalibration interval set to {validated}s")
                     logger.info(f"Distance recalibration interval changed to {validated}s via Telegram")
                     
                 # Storage parameters
@@ -742,7 +760,7 @@ class TelegramManager:
                     )
                     self.config.MAX_IMAGES = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"🖼️ Maximum number of images set to {validated}")
+                    bot.send_message(chat_id, f"🖼️ Maximum number of images set to {validated}")
                     logger.info(f"Maximum number of images changed to {validated} via Telegram")
                     
                 elif param_type == "max_videos":
@@ -754,7 +772,7 @@ class TelegramManager:
                     )
                     self.config.MAX_VIDEOS = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"🎬 Maximum number of videos set to {validated}")
+                    bot.send_message(chat_id, f"🎬 Maximum number of videos set to {validated}")
                     logger.info(f"Maximum number of videos changed to {validated} via Telegram")
                     
                 elif param_type == "max_telegram_photos":
@@ -766,18 +784,18 @@ class TelegramManager:
                     )
                     self.config.MAX_TELEGRAM_PHOTOS = validated
                     self.cloud_manager.sync_to_cloud()
-                    bot.send(chat_id, f"📱 Maximum number of Telegram photos set to {validated}")
+                    bot.send_message(chat_id, f"📱 Maximum number of Telegram photos set to {validated}")
                     logger.info(f"Maximum number of Telegram photos changed to {validated} via Telegram")
                     
                 else:
-                    bot.send(chat_id, "❌ Invalid parameter type")
+                    bot.send_message(chat_id, "❌ Invalid parameter type")
             else:
-                bot.send(chat_id, "❌ Unable to set the parameter: Cloud manager not available")
+                bot.send_message(chat_id, "❌ Unable to set the parameter: Cloud manager not available")
         except ValueError:
-            bot.send(chat_id, "❌ Invalid value. Use a number.")
+            bot.send_message(chat_id, "❌ Invalid value. Use a number.")
         except Exception as e:
             logger.error(f"Error setting parameter {param_type}: {e}")
-            bot.send(chat_id, f"❌ Error setting parameter: {e}")
+            bot.send_message(chat_id, f"❌ Error setting parameter: {e}")
 
     def _generate_settings_report(self):
         """

@@ -129,6 +129,11 @@ class VideoManager:
                     break
                     
                 clock.tick()
+                
+                # Force garbage collection periodically
+                if actual_frames % 5 == 0:
+                    gc.collect()
+                    
                 img = sensor.snapshot()
                 
                 # Add timestamp to the video
@@ -139,6 +144,9 @@ class VideoManager:
                 # Add event type label
                 event_label = f"Event: {event_type.upper()}"
                 img.draw_string(5, sensor.height() - 20, event_label, color=(255, 255, 255), scale=2)
+                
+                # Use reduced quality for video to save memory
+                quality = min(self.config.VIDEO_QUALITY, 50)
                 
                 # Write the frame to the video with the specified quality
                 video.write(img, quality=self.config.VIDEO_QUALITY)
@@ -171,6 +179,9 @@ class VideoManager:
             self.last_video_path = filename
             logger.info(f"Video saved: {self.last_video_path}, {actual_frames} frames")
             
+            # Force memory cleanup
+            gc.collect()
+            
             # Handle FIFO file management
             max_videos = 5  # Default limit
             if hasattr(self.config, 'MAX_VIDEOS'):
@@ -187,6 +198,9 @@ class VideoManager:
             return False
             
         finally:
+            # Force garbage collection
+            gc.collect()
+            
             # Restore the previous camera mode
             if prev_mode == "motion":
                 # Restore the mode for motion detection

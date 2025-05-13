@@ -175,3 +175,4 @@ cython_debug/
 
 # Secrets credentials
 secrets_keys_1.py
+PRIVATE_secrets_keys.py

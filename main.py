@@ -95,13 +95,17 @@ async def main_loop():
                             if cloud_manager:
                                 audio_detector.set_cloud_manager(cloud_manager)
                             if telegram_manager:
-                                audio_detector.set_telegram_manager(telegram_manager.bot)  # Pass the internal bot
-                            if video_manager:
+                                audio_detector.set_telegram_manager(telegram_manager)
+                            if video_manager:  # Added reference to video manager
                                 audio_detector.set_video_manager(video_manager)
                             logger.info("Audio detector initialized and started (on-demand)")
                     else:
                         if audio_detector:
-                            audio_detector.stop_audio_detection()
+                            # Fermiamo correttamente la rilevazione audio
+                            if audio_detector.audio_streaming_active:
+                                audio_detector.stop_audio_detection()
+                                # Piccola pausa per garantire che tutte le operazioni in sospeso siano completate
+                                time.sleep(0.2)
                             audio_detector = None
                             logger.info("Audio detector deactivated")
 

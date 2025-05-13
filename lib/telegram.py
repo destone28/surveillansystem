@@ -268,7 +268,7 @@ class TelegramBot:
     #
     # If 'glue' is True, the new text will be glued to the old pending
     # message up to 2k, in order to reduce the API back-and-forth.
-    def send(self, chat_id, text, glue=False):
+    def send_message(self, chat_id, text, glue=False):
         if glue and len(self.outgoing) > 0 and \
            len(self.outgoing[0]["text"])+len(text)+1 < 2048:
             self.outgoing[0]["text"] += "\n"
@@ -286,10 +286,10 @@ class TelegramBot:
 
                 if file_size > self.max_image_size:
                     # File is too large
-                    self.send(chat_id, f"📷 Photo taken! Size {file_size/1024:.1f}KB (too large for direct sending)")
+                    self.send_message(chat_id, f"📷 Photo taken! Size {file_size/1024:.1f}KB (too large for direct sending)")
                     return False
             except OSError:
-                self.send(chat_id, f"⚠️ Error: unable to find the file '{photo_path}'")
+                self.send_message(chat_id, f"⚠️ Error: unable to find the file '{photo_path}'")
                 return False
 
             # Force garbage collection before starting
@@ -303,7 +303,7 @@ class TelegramBot:
                     photo_data = f.read()
             except Exception as e:
                 print(f"[telegram] Error reading photo file: {e}")
-                self.send(chat_id, f"⚠️ File read error: {e}")
+                self.send_message(chat_id, f"⚠️ File read error: {e}")
                 return False
 
             # Send the photo using a normal POST request with URL param "chat_id"
@@ -379,17 +379,17 @@ class TelegramBot:
                     # Look for more error information in the response
                     error_info = response_text.split("\r\n\r\n")[-1] if "\r\n\r\n" in response_text else response_text
                     print(f"[telegram] Error response: {error_info[:200]}")
-                    self.send(chat_id, f"⚠️ Error sending photo. Please try again later.")
+                    self.send_message(chat_id, f"⚠️ Error sending photo. Please try again later.")
                     return False
 
             except Exception as e:
                 print(f"[telegram] Error in send_photo transaction: {e}")
-                self.send(chat_id, f"⚠️ Sending error: {e}")
+                self.send_message(chat_id, f"⚠️ Sending error: {e}")
                 return False
 
         except Exception as e:
             print(f"[telegram] Error in send_photo: {e}")
-            self.send(chat_id, f"⚠️ Generic error: {e}")
+            self.send_message(chat_id, f"⚠️ Generic error: {e}")
             return False
 
     def send_video(self, chat_id, video_path, caption=None):
@@ -411,14 +411,14 @@ class TelegramBot:
                 file_size = stats[6]  # Size in bytes
 
                 # Use a hardcoded value
-                max_video_size = 10000000  # 10MB (reasonable threshold for Telegram)
+                max_video_size = 5000000  # Reduce to 5MB to avoid memory issues
 
                 if file_size > max_video_size:
                     # File is too large
-                    self.send(chat_id, f"🎥 Video recorded! Size {file_size/1024/1024:.1f}MB (too large for direct sending)")
+                    self.send_message(chat_id, f"🎥 Video recorded! Size {file_size/1024/1024:.1f}MB (too large for direct sending)")
                     return False
             except OSError:
-                self.send(chat_id, f"⚠️ Error: unable to find the file '{video_path}'")
+                self.send_message(chat_id, f"⚠️ Error: unable to find the file '{video_path}'")
                 return False
 
             # Force garbage collection before starting
@@ -476,8 +476,8 @@ class TelegramBot:
                 # Send the first part of the form
                 ssl_sock.write(form_data)
 
-                # Read and send the file in chunks to save memory
-                chunk_size = 4096  # chunk size (4KB)
+                # Read and send the file in SMALLER chunks to save memory
+                chunk_size = 1024  # Reduced from 4096 to 1024 bytes
                 sent_bytes = 0
 
                 try:
@@ -491,23 +491,31 @@ class TelegramBot:
                             # Feedback on stdout every 20KB
                             if sent_bytes % 20480 == 0:
                                 print(f"[telegram] Sent {sent_bytes/1024:.1f}KB/{file_size/1024:.1f}KB")
-                            # Free memory
+                                
+                            # Force garbage collection after each chunk
                             del chunk
                             gc.collect()
+                            
+                            # Short pause to allow memory cleanup
+                            time.sleep(0.01)
                 except Exception as e:
                     print(f"[telegram] Error during video data sending: {e}")
                     ssl_sock.close()
                     sock.close()
-                    self.send(chat_id, f"⚠️ Error during video sending: {e}")
+                    self.send_message(chat_id, f"⚠️ Error during video sending: {e}")
                     return False
 
                 # Send the final part
                 ssl_sock.write(end_boundary)
 
                 # Read the response
-                response = bytearray(1024)
+                response = bytearray(512)  # Reduced from 1024 to 512 bytes
                 bytes_read = ssl_sock.readinto(response)
                 response_text = response[:bytes_read].decode('utf-8', 'ignore')
+
+                # Clean up immediately
+                del response
+                gc.collect()
 
                 # Close the socket
                 ssl_sock.close()
@@ -520,20 +528,20 @@ class TelegramBot:
                 else:
                     # Look for more error information in the response
                     error_info = response_text.split("\r\n\r\n")[-1] if "\r\n\r\n" in response_text else response_text
-                    print(f"[telegram] Error response: {error_info[:200]}")
-                    self.send(chat_id, f"⚠️ Error sending video. Please try again later.")
+                    print(f"[telegram] Error response: {error_info[:100]}")
+                    self.send_message(chat_id, f"⚠️ Error sending video. Please try again later.")
                     return False
 
             except Exception as e:
                 print(f"[telegram] Error in send_video transaction: {e}")
-                self.send(chat_id, f"⚠️ Sending video error: {e}")
+                self.send_message(chat_id, f"⚠️ Sending video error: {e}")
                 return False
 
         except Exception as e:
             print(f"[telegram] Error in send_video: {e}")
-            self.send(chat_id, f"⚠️ Generic video sending error: {e}")
+            self.send_message(chat_id, f"⚠️ Generic video sending error: {e}")
             return False
-
+        
     # This is just a utility method that can be used in order to wait
     # for the WiFi network to be connected.
     def connect_wifi(self, ssid, password, timeout=30):
