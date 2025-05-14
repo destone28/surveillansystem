@@ -38,7 +38,7 @@ class AudioDetector:
 
         # Parameters from config, with proper defaults if not available
         self.reset_threshold = 5     # Level below which we consider the sound has ended
-        self.min_time_between_alerts = 0.5  # Minimum seconds between alerts
+        self.min_time_between_alerts = self.config.INHIBIT_PERIOD # Minimum seconds between alerts
 
         # Initialize audio system
         self.init_audio()

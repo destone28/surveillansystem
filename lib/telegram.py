@@ -379,17 +379,17 @@ class TelegramBot:
                     # Look for more error information in the response
                     error_info = response_text.split("\r\n\r\n")[-1] if "\r\n\r\n" in response_text else response_text
                     print(f"[telegram] Error response: {error_info[:200]}")
-                    self.send_message(chat_id, f"⚠️ Error sending photo. Please try again later.")
+                    self.send_message(chat_id, f"⚠️ Error 1 sending photo. Please try again.\nIf the problem persists, please report to @destone28, sending screenshot of the last messages with this bot.")
                     return False
 
             except Exception as e:
                 print(f"[telegram] Error in send_photo transaction: {e}")
-                self.send_message(chat_id, f"⚠️ Sending error: {e}")
+                self.send_message(chat_id, f"⚠️ Error 2 sending photo. Please try again.\nIf the problem persists, please report to @destone28, sending screenshot of the last messages with this bot.")
                 return False
 
         except Exception as e:
             print(f"[telegram] Error in send_photo: {e}")
-            self.send_message(chat_id, f"⚠️ Generic error: {e}")
+            self.send_message(chat_id, f"⚠️ Error 3 sending photo. Please try again.\nIf the problem persists, please report to @destone28, sending screenshot of the last messages with this bot.")
             return False
 
     def send_video(self, chat_id, video_path, caption=None):

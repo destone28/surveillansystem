@@ -48,8 +48,8 @@ class Config:
     VIDEO_QUALITY_MAX = 100    # Maximum quality
 
     # General settings
-    INHIBIT_PERIOD = 10       # Increased inhibition seconds to reduce frequency of detection
-    INHIBIT_PERIOD_MIN = 5    # Increased minimum inhibition period
+    INHIBIT_PERIOD = 8        # Increased inhibition seconds to reduce frequency of detection
+    INHIBIT_PERIOD_MIN = 1    # Increased minimum inhibition period
     INHIBIT_PERIOD_MAX = 30
 
     # System intervals

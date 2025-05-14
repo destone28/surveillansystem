@@ -39,28 +39,36 @@ The project maximizes the hardware capabilities of Arduino Nicla Vision:
 
 - Arduino Nicla Vision
 - Arduino IoT Cloud account
-- Telegram account and a Telegram bot created via BotFather
+- Telegram account
 - OpenMV IDE installed on your computer
 - MicroPython installed on Arduino Nicla Vision (version >= 1.2)
 - WiFi connection
 
+### 0. Download this repo
+- Download the code for this project pressing "Code" green button in GitHub page -> Download Zip file
+
 ### 1. Installing Arduino Agent
 
-- Follow the steps to install the Arduino Agent on Linux, Windows, or macOS at: [https://support.arduino.cc/hc/en-us/articles/360014869820-Install-the-Arduino-Cloud-Agent](https://support.arduino.cc/hc/en-us/articles/360014869820-Install-the-Arduino-Cloud-Agent)
+- Follow the steps to install the Arduino Agent on Linux, Windows, or macOS:
+[https://support.arduino.cc/hc/en-us/articles/360014869820-Install-the-Arduino-Cloud-Agent](https://support.arduino.cc/hc/en-us/articles/360014869820-Install-the-Arduino-Cloud-Agent)
 
 ### 2. Installing OpenMV IDE
 
-1. Download OpenMV IDE from the official website: [https://openmv.io/pages/download](https://openmv.io/pages/download)
+1. Download OpenMV IDE from the official website: [https://openmv.io/pages/download](https://openmv.io/pages/download): choose the correct version for your current OS
 2. Install the IDE following the instructions for your operating system
-3. Launch OpenMV IDE
-4. Connect Arduino Nicla Vision to your computer via USB
-5. In the toolbar, select the correct serial port for your Arduino Nicla Vision
-6. If prompted, install the MicroPython firmware for Arduino Nicla Vision
+
+### 3. Setup MicroPython firmware on Arduino Nicla Vision
+1. Download MicroPython firmware from this link: https://micropython.org/resources/firmware/ARDUINO_NICLA_VISION-20240105-v1.22.1.dfu
+2. Connect Arduino Nicla Vision to your computer via USB cable
+3. Double-press the Arduino Nicla Vision reset button on the device: a green light will start blinking
+4. Click on the usb-attached icon: ![alt text](./img/usb_attached_icon.png)
+5. Click on "OK" when the following message appears 
+![alt text](./img/firmware_update.png)
+6. Do not interrupt the installation of the firmware on your Nicla Vision and wait until the end.
 
 ### 3. Arduino IoT Cloud Configuration
 
 1. **Log in to your Arduino IoT Cloud account** at [https://create.arduino.cc/iot](https://create.arduino.cc/iot)
-
 2. **Create a new Thing**:
    - Click on "Create Thing"
    - Assign a name to your Thing (e.g., "NiclaVisionAlert")
@@ -74,55 +82,51 @@ The project maximizes the hardware capabilities of Arduino Nicla Vision:
 
 4. **Create the following variables** in your Thing:
 
-   | Variable name | Type | Description |
-   |---------------|------|-------------|
-   | global_enable | boolean | Enable/disable the entire system |
-   | camera_monitoring | boolean | Enable/disable camera monitoring |
-   | audio_monitoring | boolean | Enable/disable microphone monitoring |
-   | distance_monitoring | boolean | Enable/disable distance sensor monitoring |
-   | audio_threshold | integer | Threshold for audio detection |
-   | camera_threshold | float | Threshold for motion detection |
-   | distance_threshold | integer | Threshold for distance variation detection |
-   | video_duration | integer | Duration of recorded videos (in seconds) |
-   | video_fps | integer | Video frame rate |
-   | video_quality | integer | Video quality (1-100) |
-   | inhibit_period | integer | Minimum period between two detections (in seconds) |
-   | system_status | string | Current system status |
-   | last_event | string | Last detected event |
-   | last_event_time | string | Time of the last event |
-   | log_messages | string | System logs |
-   | record_video_enabled | boolean | Enable/disable video recording |
-   | send_videos_telegram | boolean | Enable/disable sending videos via Telegram |
+| Variable Name | Type | Description | Permission | Dashboard Widget |
+|---------------|------|-------------|------------|-----------------|
+| **audio_monitoring** | CloudSwitch | Enables or disables audio monitoring via the device's microphone. When active, the system detects sound levels exceeding the set threshold. | Read & Write | CloudSwitch |
+| **audio_threshold** | int | Threshold level (0-100) that determines when a sound is considered an event. Lower values increase sensitivity, detecting quieter sounds. | Read & Write | Slider with min:0 - max:100 values range|
+| **camera_monitoring** | CloudSwitch | Enables or disables monitoring through the camera. When active, the system detects motion based on brightness changes. | Read & Write | CloudSwitch |
+| **camera_threshold** | int | Percentage of brightness change required to detect motion. Lower values increase sensitivity to subtle movements. | Read & Write | Slider with min:1 - max:50 values range |
+| **distance_monitoring** | CloudSwitch | Enables or disables monitoring using the Time-of-Flight distance sensor. When active, detects changes in distance from the baseline. | Read & Write | CloudSwitch |
+| **distance_threshold** | int | Distance variation in millimeters (mm) required to trigger a detection event. Higher values reduce sensitivity. | Read & Write | Slider with min:50 - max:2000 values range |
+| **event_type** | String | Identifies the type of the latest detected event (Camera, Audio, or Distance). | Read & Write | Not displayed |
+| **global_enable** | CloudSwitch | Master switch that activates or deactivates the entire monitoring system. When disabled, no detections occur regardless of individual settings. | Read & Write | CloudSwitch |
+| **inhibit_period** | int | Minimum time in seconds that must elapse between consecutive detection events. Prevents multiple notifications for the same event. | Read & Write | Slider with min:1 - max:30 values range |
+| **last_event** | String | Details about the most recent detection event, including type and additional information. | Read Only | Value |
+| **log_messages** | String | System log messages providing information about operations, errors, and status changes. | Read Only | Messenger |
+| **system_status** | String | Current operational status of the system, showing which monitoring features are active. | Read Only | Value |
+| **video_duration** | int | Length of recorded videos in seconds when an event is detected. | Read & Write | Slider with min:3 - max:30 values range |
+| **video_fps** | int | Frames per second for video recording. Higher values result in smoother videos but larger file sizes. | Read & Write | Slider with min:5 - max:15 values range |
+| **video_quality** | int | Video compression quality (0-100). Higher values produce better quality but larger file sizes. | Read & Write | Slider with min:10 - max:100 values range |
 
 5. **Create a Dashboard**:
    - Go to the "Dashboards" section and click "Create Dashboard"
-   - Assign a name to the dashboard (e.g., "NiclaVision Control")
-   - Add the following widgets associated with the created variables:
-     - CloudSwitches for: global_enable, camera_monitoring, audio_monitoring, distance_monitoring, record_video_enabled, send_videos_telegram
-     - Sliders for: audio_threshold, camera_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
-     - Value widgets for: system_status, last_event, last_event_time
-     - Messenger for: log_messages
+   - Assign a name to the dashboard (e.g., "NiclaVision Control", or "Surveillansystem", as in the image below)
+   - Add widgets following the examples provided in the previous table
    - You can organize all the widgets in a layout similar to the following in the image:
    ![](./img/dashboard_layout.png)
 
 ### 4. Creating the Telegram Bot
 
 1. **Create a new bot on Telegram**:
-   - Start a chat with BotFather (@BotFather) on Telegram
+   - Open Telegram App on your smartphone or browser webapp from Linux, Windows or Mac (https://web.telegram.org/)
+   - Search for "BotFather" account in the search bar: pay attention to choose the one with the blue tick in the name: it is the only official one!
+   - Start a chat with BotFather (@BotFather)
    - Send the command `/newbot`
    - Follow the instructions to give a name to your bot
    - At the end, you will receive a **token** for the bot API. Save it, you will need it to configure the system
 
 2. **Get your chat ID**:
-   - Start a chat with IDBot (@myidbot) on Telegram
+   - Now search for IDBot (@myidbot) on Telegram search bar and start a chat
    - Send the command `/getid`
    - The bot will reply with your **chat ID**. Save it, you will need it to authorize your account
 
 ### 5. Preparing files on the device
 
 1. **Check the `secrets_keys.py` file**:
-   - The repository includes a `secrets_keys.py` file with generic information
-   - Open this file with OpenMV IDE and modify the information with your personal data:
+   - In the downloaded folder with project code, open the main folder and find `secrets_keys.py` file with generic information
+   - Open this file with a text editor of your choice (be sure not to use a word processor software like "Word") and modify the information with your personal data for wifi connection and other info obtained from Arduino IoT Cloud platform and BotFather:
 
    ```python
    # WiFi credentials
@@ -139,48 +143,27 @@ The project maximizes the hardware capabilities of Arduino Nicla Vision:
    # You can use ["*"] to allow anyone to use the bot
    ```
 
-2. **Install the Arduino IoT Cloud library for MicroPython**:
-   - Download the Arduino IoT Cloud for MicroPython library from the official repository: [https://github.com/arduino/arduino-iot-cloud-py](https://github.com/arduino/arduino-iot-cloud-py)
-   - Connect your Arduino Nicla Vision to the computer
-   - Open OpenMV IDE
-   - Use the OpenMV file management tool to create a `lib` folder on the device (if it doesn't already exist)
-   - Copy all the files from the downloaded library to the `lib` folder on the device
-
-3. **Upload all Python files to the device**:
-   - Connect your Arduino Nicla Vision to the computer
-   - Open OpenMV IDE
-   - Upload all the files provided in the repository using the OpenMV file management tool:
-     - `main.py`
-     - `config.py`
-     - `camera_detector.py`
-     - `audio_detector.py`
-     - `distance_detector.py`
-     - `video_manager.py`
-     - `photo_manager.py`
-     - `file_manager.py`
-     - `cloud_manager.py`
-     - `telegram.py`
-     - `secrets_keys.py` (modified with your data)
-   - Make sure all files are uploaded to the main directory of the device
+2. **Upload all files to the device**:
+   - Upload all the files and folders provided in the repository downloaded but **be sure not to copy** the `img` folder. Include the `secrets_keys.py` file just modified with your data
+   - **Make sure all files are uploaded to the main directory of the device**
+   - Disconnect Arduino Nicla Vision safetly from your USB port
 
 ### 6. Starting the system
 
 1. **Restart the device**:
-   - Press the reset button on Arduino Nicla Vision or disconnect and reconnect the device
-
-2. **Verify the connection**:
+   - Reconnect the device to USB port or just power it from a USB power source
    - The system should start automatically
-   - The integrated LEDs will provide visual feedback on the system status:
-     - Blinking blue LED: system active
-     - Green LED: operation completed successfully
-     - Red LED: error or alarm
 
-3. **Test with Telegram**:
-   - Start a chat with your bot on Telegram
-   - Send the `/start` command
-   - The bot should respond with a welcome message
-   - Send the `/status` command to check the system status
+2. **Test with Telegram**:
+   - In the Telegram App, go to the chatbot conversation
+   - Send a "/start" command to it
+   - At this point, if you correctly inserted your `chat_id` in the `TELEGRAM_AUTHORIZED_USERS` variables in `secrets_keys.py` file, the System shall message you automatically with a Notification about the system to be started and ready
+   - You could need to wait some seconds to receive this message, if this doesn't happen, try to restart the device.
+   - Type "/help" for the complete list of available commands to send to the telegram bot
 
+3. **Test the Arduino Dashboard**
+   - Go to your Dashboard page and test all the switches and sliders changing values and trying to activate "Global Enable" first, then the different detection modalities.
+   
 ## Usage Examples
 
 ### Controlling the system via Telegram
@@ -207,28 +190,21 @@ The Telegram bot supports the following commands:
 - `/videos_off` - Disable automatic video recording
 
 #### Threshold Settings
-- `/set_camera_threshold X` - Set motion threshold (0.5-50)
-- `/set_audio_threshold X` - Set audio threshold (500-20000)
-- `/set_distance_threshold X` - Set distance threshold (10-2000)
+- `/set_camera_threshold X` - Set camera threshold (%) (1-50)
+- `/set_audio_threshold X` - Set audio threshold (%) (0-100)
+- `/set_distance_threshold X` - Set distance threshold (mm) (50-2000)
 
 #### Video Settings
 - `/set_video_duration X` - Set video duration in seconds (3-30)
-- `/set_video_fps X` - Set frames per second (5-30)
+- `/set_video_fps X` - Set frames per second (5-15)
 - `/set_video_quality X` - Set video quality (10-100)
 
 #### Photo Settings
 - `/set_photo_quality X` - Set photo quality (10-100)
-- `/set_telegram_photo_quality X` - Set Telegram photo quality (10-100)
 
 #### Other Settings
 - `/set_inhibit_period X` - Set inhibition period in seconds (1-30)
 - `/set_audio_gain X` - Set audio gain in dB (0-48)
-- `/set_distance_recalibration X` - Set distance recalibration interval (60-3600)
-
-#### Storage Settings
-- `/set_max_images X` - Set maximum number of images (5-100)
-- `/set_max_videos X` - Set maximum number of videos (2-20)
-- `/set_max_telegram_photos X` - Set maximum number of Telegram photos (2-20)
 
 #### Other Information
 - `/show_settings` - Show all current settings
@@ -302,7 +278,7 @@ Here are some ideas to extend and further improve the project:
 
 ---
 
-## Troubleshooting Common Issues
+## Troubleshooting Common Issues (FAQ)
 
 ### The device doesn't connect to WiFi
 
@@ -327,6 +303,7 @@ Here are some ideas to extend and further improve the project:
 - Adjust the detection thresholds via Arduino IoT Cloud or Telegram commands
 - Make sure the device is properly positioned
 - Verify that the desired monitoring mode is activated
+- The default config values shall work in the usual scenarios, however you can check and recalibrate values according to your context and needs
 
 ### Video recording fails
 
@@ -339,6 +316,11 @@ Here are some ideas to extend and further improve the project:
 For any issues or questions, you can create an issue in the GitHub repository of the project or contact Emilio (@destone28) <emilio.destratis@gmail.com>.
 
 ---
+---
+---
+ITALIAN VERSION:
+
+![](./img/SurveillanSystem_logo.png)
 
 # Nicla Vision Alert Detector
 
@@ -379,28 +361,36 @@ Il progetto sfrutta al massimo le capacità hardware dell'Arduino Nicla Vision:
 
 - Arduino Nicla Vision
 - Account Arduino IoT Cloud
-- Account Telegram e un bot Telegram creato tramite BotFather
+- Account Telegram
 - OpenMV IDE installato sul computer
 - MicroPython installato su Arduino Nicla Vision (versione >= 1.2)
 - Connessione WiFi
 
+### 0. Scarica questo repository
+- Scarica il codice per questo progetto premendo il pulsante verde "Code" nella pagina GitHub -> Download Zip file
+
 ### 1. Installazione di Arduino Agent
 
-- Segui i passaggi per installare l'Arduino Agent su Linux, Windows o macOS all'indirizzo: [https://support.arduino.cc/hc/en-us/articles/360014869820-Install-the-Arduino-Cloud-Agent](https://support.arduino.cc/hc/en-us/articles/360014869820-Install-the-Arduino-Cloud-Agent)
+- Segui i passaggi per installare l'Arduino Agent su Linux, Windows o macOS all'indirizzo:
+[https://support.arduino.cc/hc/en-us/articles/360014869820-Install-the-Arduino-Cloud-Agent](https://support.arduino.cc/hc/en-us/articles/360014869820-Install-the-Arduino-Cloud-Agent)
 
 ### 2. Installazione di OpenMV IDE
 
-1. Scarica OpenMV IDE dal sito ufficiale: [https://openmv.io/pages/download](https://openmv.io/pages/download)
+1. Scarica OpenMV IDE dal sito ufficiale: [https://openmv.io/pages/download](https://openmv.io/pages/download): scegli la versione corretta per il tuo sistema operativo
 2. Installa l'IDE seguendo le istruzioni per il tuo sistema operativo
-3. Avvia OpenMV IDE
-4. Collega Arduino Nicla Vision al computer tramite USB
-5. Nella barra degli strumenti, seleziona la porta seriale corretta per il tuo Arduino Nicla Vision
-6. Se richiesto, installa il firmware MicroPython per Arduino Nicla Vision
+
+### 3. Configurazione del firmware MicroPython su Arduino Nicla Vision
+1. Scarica il firmware MicroPython da questo link: https://micropython.org/resources/firmware/ARDUINO_NICLA_VISION-20240105-v1.22.1.dfu
+2. Collega Arduino Nicla Vision al computer tramite cavo USB
+3. Premi due volte il pulsante di reset di Arduino Nicla Vision sul dispositivo: una luce verde inizierà a lampeggiare
+4. Clicca sull'icona usb-attached: ![alt text](./img/usb_attached_icon.png)
+5. Clicca su "OK" quando appare il seguente messaggio 
+![alt text](./img/firmware_update.png)
+6. Non interrompere l'installazione del firmware sul tuo Nicla Vision e attendi fino alla fine.
 
 ### 3. Configurazione Arduino IoT Cloud
 
 1. **Accedi al tuo account Arduino IoT Cloud** all'indirizzo [https://create.arduino.cc/iot](https://create.arduino.cc/iot)
-
 2. **Crea una nuova Thing**:
    - Clicca su "Create Thing"
    - Assegna un nome alla tua Thing (ad esempio "NiclaVisionAlert")
@@ -414,168 +404,136 @@ Il progetto sfrutta al massimo le capacità hardware dell'Arduino Nicla Vision:
 
 4. **Crea le seguenti variabili** nella tua Thing:
 
-   | Nome variabile | Tipo | Descrizione |
-   |---------------|------|-------------|
-   | global_enable | boolean | Attiva/disattiva tutto il sistema |
-   | camera_monitoring | boolean | Attiva/disattiva il monitoraggio via camera |
-   | audio_monitoring | boolean | Attiva/disattiva il monitoraggio via microfono |
-   | distance_monitoring | boolean | Attiva/disattiva il monitoraggio via sensore di distanza |
-   | audio_threshold | integer | Soglia per il rilevamento audio |
-   | camera_threshold | float | Soglia per il rilevamento movimento |
-   | distance_threshold | integer | Soglia per il rilevamento variazione distanza |
-   | video_duration | integer | Durata dei video registrati (in secondi) |
-   | video_fps | integer | Frequenza dei fotogrammi video |
-   | video_quality | integer | Qualità dei video (1-100) |
-   | inhibit_period | integer | Periodo minimo tra due rilevamenti (in secondi) |
-   | system_status | string | Stato attuale del sistema |
-   | last_event | string | Ultimo evento rilevato |
-   | last_event_time | string | Orario dell'ultimo evento |
-   | log_messages | string | Log del sistema |
-   | record_video_enabled | boolean | Attiva/disattiva la registrazione video |
-   | send_videos_telegram | boolean | Attiva/disattiva l'invio di video via Telegram |
+| Nome Variabile | Tipo | Descrizione | Permessi | Widget Dashboard |
+|---------------|------|-------------|------------|-----------------|
+| **audio_monitoring** | CloudSwitch | Attiva/disattiva il monitoraggio audio tramite il microfono del dispositivo. Quando attivo, il sistema rileva livelli sonori che superano la soglia impostata. | Lettura & Scrittura | CloudSwitch |
+| **audio_threshold** | int | Livello di soglia (0-100) che determina quando un suono viene considerato un evento. Valori più bassi aumentano la sensibilità, rilevando suoni più silenziosi. | Lettura & Scrittura | Slider con intervallo di valori min:0 - max:100 |
+| **camera_monitoring** | CloudSwitch | Attiva/disattiva il monitoraggio tramite la camera. Quando attivo, il sistema rileva movimenti basati su cambiamenti di luminosità. | Lettura & Scrittura | CloudSwitch |
+| **camera_threshold** | int | Percentuale di cambiamento di luminosità richiesta per rilevare un movimento. Valori più bassi aumentano la sensibilità a movimenti sottili. | Lettura & Scrittura | Slider con intervallo di valori min:1 - max:50 |
+| **distance_monitoring** | CloudSwitch | Attiva/disattiva il monitoraggio tramite il sensore di distanza Time-of-Flight. Quando attivo, rileva cambiamenti nella distanza rispetto alla linea di base. | Lettura & Scrittura | CloudSwitch |
+| **distance_threshold** | int | Variazione di distanza in millimetri (mm) richiesta per attivare un evento di rilevamento. Valori più alti riducono la sensibilità. | Lettura & Scrittura | Slider con intervallo di valori min:50 - max:2000 |
+| **event_type** | String | Identifica il tipo dell'ultimo evento rilevato (Camera, Audio o Distance). | Lettura & Scrittura | Non visualizzato |
+| **global_enable** | CloudSwitch | Interruttore principale che attiva o disattiva l'intero sistema di monitoraggio. Quando disabilitato, non avviene alcun rilevamento indipendentemente dalle impostazioni individuali. | Lettura & Scrittura | CloudSwitch |
+| **inhibit_period** | int | Tempo minimo in secondi che deve trascorrere tra eventi di rilevamento consecutivi. Previene notifiche multiple per lo stesso evento. | Lettura & Scrittura | Slider con intervallo di valori min:1 - max:30 |
+| **last_event** | String | Dettagli sull'evento di rilevamento più recente, inclusi tipo e informazioni aggiuntive. | Solo Lettura | Value |
+| **log_messages** | String | Messaggi di log del sistema che forniscono informazioni su operazioni, errori e cambiamenti di stato. | Solo Lettura | Messenger |
+| **system_status** | String | Stato operativo corrente del sistema, che mostra quali funzionalità di monitoraggio sono attive. | Solo Lettura | Value |
+| **video_duration** | int | Durata dei video registrati in secondi quando viene rilevato un evento. | Lettura & Scrittura | Slider con intervallo di valori min:3 - max:30 |
+| **video_fps** | int | Fotogrammi al secondo per la registrazione video. Valori più alti producono video più fluidi ma file più grandi. | Lettura & Scrittura | Slider con intervallo di valori min:5 - max:15 |
+| **video_quality** | int | Qualità di compressione video (0-100). Valori più alti producono una qualità migliore ma file più grandi. | Lettura & Scrittura | Slider con intervallo di valori min:10 - max:100 |
 
-5. **Crea un Dashboard**:
+5. **Crea una Dashboard**:
    - Vai alla sezione "Dashboards" e clicca "Create Dashboard"
-   - Assegna un nome al dashboard (ad esempio "NiclaVision Control")
-   - Aggiungi i seguenti widget associati alle variabili create:
-     - CloudSwitch per: global_enable, camera_monitoring, audio_monitoring, distance_monitoring, record_video_enabled, send_videos_telegram
-     - Slider per: audio_threshold, camera_threshold, distance_threshold, video_duration, video_fps, video_quality, inhibit_period
-     - Value per: system_status, last_event, last_event_time
-     - Messenger per: log_messages
-   - Puoi organizzare tutti i widgets in un layout simile a quello nell'immagine:
+   - Assegna un nome alla dashboard (ad esempio "NiclaVision Control", o "Surveillansystem", come nell'immagine seguente)
+   - Aggiungi widget seguendo gli esempi forniti nella tabella precedente
+   - Puoi organizzare tutti i widget in un layout simile a quello nell'immagine seguente:
    ![](./img/dashboard_layout.png)
-   
+
 ### 4. Creazione del Bot Telegram
 
 1. **Crea un nuovo bot su Telegram**:
-   - Avvia una chat con BotFather (@BotFather) su Telegram
+   - Apri l'App Telegram sul tuo smartphone o la webapp del browser da Linux, Windows o Mac (https://web.telegram.org/)
+   - Cerca l'account "BotFather" nella barra di ricerca: fai attenzione a scegliere quello con il segno di spunta blu nel nome: è l'unico ufficiale!
+   - Avvia una chat con BotFather (@BotFather)
    - Invia il comando `/newbot`
    - Segui le istruzioni per dare un nome al tuo bot
-   - Al termine, riceverai un **token** per l'API del bot. Salvalo, ti servirà per configurare il sistema
+   - Alla fine, riceverai un **token** per l'API del bot. Salvalo, ti servirà per configurare il sistema
 
 2. **Ottieni il tuo chat ID**:
-   - Avvia una chat con IDBot (@myidbot) su Telegram
+   - Ora cerca IDBot (@myidbot) nella barra di ricerca di Telegram e avvia una chat
    - Invia il comando `/getid`
    - Il bot risponderà con il tuo **chat ID**. Salvalo, ti servirà per autorizzare il tuo account
 
 ### 5. Preparazione dei file sul dispositivo
 
 1. **Verifica il file `secrets_keys.py`**:
-   - Nel repository è fornito un file `secrets_keys.py` con informazioni generiche
-   - Apri questo file con OpenMV IDE e modifica le informazioni con i tuoi dati personali:
+   - Nella cartella scaricata con il codice del progetto, apri la cartella principale e trova il file `secrets_keys.py` con informazioni generiche
+   - Apri questo file con un editor di testo a tua scelta (assicurati di non utilizzare un elaboratore di testi come "Word") e modifica le informazioni con i tuoi dati personali per la connessione WiFi e altre info ottenute dalla piattaforma Arduino IoT Cloud e da BotFather:
 
    ```python
    # WiFi credentials
-   WIFI_SSID = "Il_Tuo_SSID_WiFi"
-   WIFI_PASS = "La_Tua_Password_WiFi"
+   WIFI_SSID = "Your_WiFi_SSID"
+   WIFI_PASS = "Your_WiFi_Password"
 
    # Arduino IoT Cloud credentials
-   DEVICE_ID = "il_tuo_device_id"  # Device ID fornito da Arduino IoT Cloud
-   SECRET_KEY = "il_tuo_secret_key"  # Secret Key fornito da Arduino IoT Cloud
+   DEVICE_ID = "your_device_id"  # Device ID provided by Arduino IoT Cloud
+   SECRET_KEY = "your_secret_key"  # Secret Key provided by Arduino IoT Cloud
 
    # Telegram bot credentials
-   TELEGRAM_TOKEN = "il_tuo_token_bot"  # Token fornito da BotFather
-   TELEGRAM_AUTHORIZED_USERS = ["il_tuo_chat_id"]  # Lista di chat ID autorizzati
-   # Puoi usare ["*"] per permettere a chiunque di usare il bot
+   TELEGRAM_TOKEN = "your_bot_token"  # Token provided by BotFather
+   TELEGRAM_AUTHORIZED_USERS = ["your_chat_id"]  # List of authorized chat IDs
+   # You can use ["*"] to allow anyone to use the bot
    ```
 
-2. **Installa la libreria Arduino IoT Cloud per MicroPython**:
-   - Scarica la libreria Arduino IoT Cloud per MicroPython dal repository ufficiale: [https://github.com/arduino/arduino-iot-cloud-py](https://github.com/arduino/arduino-iot-cloud-py)
-   - Collega il tuo Arduino Nicla Vision al computer
-   - Apri OpenMV IDE
-   - Usa lo strumento di gestione dei file di OpenMV per creare una cartella `lib` nel dispositivo (se non esiste già)
-   - Copia tutti i file della libreria scaricata nella cartella `lib` del dispositivo
-
-3. **Carica tutti i file Python sul dispositivo**:
-   - Collega il tuo Arduino Nicla Vision al computer
-   - Apri OpenMV IDE
-   - Carica tutti i file forniti nel repository sul dispositivo tramite lo strumento di gestione dei file di OpenMV:
-     - `main.py`
-     - `config.py`
-     - `camera_detector.py`
-     - `audio_detector.py`
-     - `distance_detector.py`
-     - `video_manager.py`
-     - `photo_manager.py`
-     - `file_manager.py`
-     - `cloud_manager.py`
-     - `telegram.py`
-     - `secrets_keys.py` (modificato con i tuoi dati)
-   - Assicurati che tutti i file siano caricati nella directory principale del dispositivo
+2. **Carica tutti i file sul dispositivo**:
+   - Carica tutti i file e le cartelle forniti nel repository scaricato ma **assicurati di non copiare** la cartella `img`. Includi il file `secrets_keys.py` appena modificato con i tuoi dati
+   - **Assicurati che tutti i file siano caricati nella directory principale del dispositivo**
+   - Disconnetti Arduino Nicla Vision in modo sicuro dalla porta USB
 
 ### 6. Avvio del sistema
 
 1. **Riavvia il dispositivo**:
-   - Premi il pulsante di reset su Arduino Nicla Vision o scollega e ricollega il dispositivo
-
-2. **Verifica la connessione**:
+   - Ricollega il dispositivo alla porta USB o alimentalo semplicemente da una fonte di alimentazione USB
    - Il sistema dovrebbe avviarsi automaticamente
-   - I LED integrati forniranno feedback visivo sullo stato del sistema:
-     - LED blu lampeggiante: sistema attivo
-     - LED verde: operazione completata con successo
-     - LED rosso: errore o allarme
 
-3. **Test con Telegram**:
-   - Avvia una chat con il tuo bot su Telegram
-   - Invia il comando `/start`
-   - Il bot dovrebbe rispondere con un messaggio di benvenuto
-   - Invia il comando `/status` per verificare lo stato del sistema
+2. **Test con Telegram**:
+   - Nell'App Telegram, vai alla conversazione con il chatbot
+   - Invia un comando "/start"
+   - A questo punto, se hai inserito correttamente il tuo `chat_id` nella variabile `TELEGRAM_AUTHORIZED_USERS` nel file `secrets_keys.py`, il Sistema ti invierà automaticamente un Messaggio di Notifica che indica che il sistema è stato avviato ed è pronto
+   - Potresti dover attendere alcuni secondi per ricevere questo messaggio; se non arriva, prova a riavviare il dispositivo
+   - Digita "/help" per la lista completa dei comandi disponibili da inviare al bot telegram
 
+3. **Test della Dashboard Arduino**
+   - Vai alla tua pagina Dashboard e testa tutti gli switch e gli slider modificando i valori e cercando di attivare prima "Global Enable", poi le diverse modalità di rilevamento.
+   
 ## Esempi di utilizzo
 
-### Controllo del sistema tramite Telegram
+### Controllo del sistema via Telegram
 
 Il bot Telegram supporta i seguenti comandi:
 
-#### Generici
+#### Generali
 
 - `/start` - Avvia il bot e mostra il messaggio di benvenuto
 - `/status` - Mostra lo stato del sistema
-- `/enable` - Abilita il monitoraggio globale
-- `/disable` - Disabilita il monitoraggio globale
-- `/camera_on` - Abilita il monitoraggio tramite camera
-- `/camera_off` - Disabilita il monitoraggio tramite camera
-- `/audio_on` - Abilita il monitoraggio tramite microfono
-- `/audio_off` - Disabilita il monitoraggio tramite microfono
-- `/distance_on` - Abilita il monitoraggio tramite sensore di distanza
-- `/distance_off` - Disabilita il monitoraggio tramite sensore di distanza
+- `/enable` - Attiva il monitoraggio globale
+- `/disable` - Disattiva il monitoraggio globale
+- `/camera_on` - Attiva il monitoraggio tramite camera
+- `/camera_off` - Disattiva il monitoraggio tramite camera
+- `/audio_on` - Attiva il monitoraggio tramite microfono
+- `/audio_off` - Disattiva il monitoraggio tramite microfono
+- `/distance_on` - Attiva il monitoraggio tramite sensore di distanza
+- `/distance_off` - Disattiva il monitoraggio tramite sensore di distanza
 - `/photo` - Scatta una foto istantanea
-- `/photos_on` - Abilita l'invio automatico di foto
-- `/photos_off` - Disabilita l'invio automatico di foto
+- `/photos_on` - Attiva l'invio automatico di foto
+- `/photos_off` - Disattiva l'invio automatico di foto
 - `/video` - Registra un video istantaneo
-- `/videos_on` - Abilita la registrazione automatica di video
-- `/videos_off` - Disabilita la registrazione automatica di video
+- `/videos_on` - Attiva la registrazione automatica di video
+- `/videos_off` - Disattiva la registrazione automatica di video
 
-#### Impostazioni soglie
-- `/set_camera_threshold X` - Imposta soglia movimento (0.5-50)
-- `/set_audio_threshold X` - Imposta soglia audio (500-20000)
-- `/set_distance_threshold X` - Imposta soglia distanza (10-2000)
+#### Impostazioni delle soglie
+- `/set_camera_threshold X` - Imposta soglia camera (%) (1-50)
+- `/set_audio_threshold X` - Imposta soglia audio (%) (0-100)
+- `/set_distance_threshold X` - Imposta soglia distanza (mm) (50-2000)
 
 #### Impostazioni video
 - `/set_video_duration X` - Imposta durata video in secondi (3-30)
-- `/set_video_fps X` - Imposta frame per secondo (5-30)
+- `/set_video_fps X` - Imposta fotogrammi al secondo (5-15)
 - `/set_video_quality X` - Imposta qualità video (10-100)
 
 #### Impostazioni foto
 - `/set_photo_quality X` - Imposta qualità foto (10-100)
-- `/set_telegram_photo_quality X` - Imposta qualità foto Telegram (10-100)
 
 #### Altre impostazioni
 - `/set_inhibit_period X` - Imposta periodo di inibizione in secondi (1-30)
 - `/set_audio_gain X` - Imposta guadagno audio in dB (0-48)
-- `/set_distance_recalibration X` - Imposta intervallo ricalibrazione distanza (60-3600)
-
-#### Impostazioni archiviazione
-- `/set_max_images X` - Imposta numero massimo immagini (5-100)
-- `/set_max_videos X` - Imposta numero massimo video (2-20)
-- `/set_max_telegram_photos X` - Imposta numero massimo foto Telegram (2-20)
 
 #### Altre informazioni
-- `/show_settings` - Mostra tutte le impostazioni attuali
+- `/show_settings` - Mostra tutte le impostazioni correnti
 
 ### Configurazione tramite Arduino IoT Cloud
 
-Puoi utilizzare il dashboard creato su Arduino IoT Cloud per:
+Puoi utilizzare la dashboard creata su Arduino IoT Cloud per:
 
 1. **Attivare/disattivare le funzionalità di monitoraggio**:
    - Usa gli switch per attivare/disattivare il sistema globalmente o singole modalità
@@ -642,7 +600,7 @@ Ecco alcune idee per estendere e migliorare ulteriormente il progetto:
 
 ---
 
-## Risoluzione dei problemi comuni
+## Risoluzione dei problemi comuni (FAQ)
 
 ### Il dispositivo non si connette al WiFi
 
@@ -667,6 +625,7 @@ Ecco alcune idee per estendere e migliorare ulteriormente il progetto:
 - Regola le soglie di rilevamento tramite Arduino IoT Cloud o i comandi Telegram
 - Assicurati che il dispositivo sia posizionato correttamente
 - Verifica che la modalità di monitoraggio desiderata sia attivata
+- I valori di configurazione predefiniti dovrebbero funzionare negli scenari usuali, tuttavia puoi controllare e ricalibrare i valori in base al tuo contesto e alle tue esigenze
 
 ### La registrazione video fallisce
 
@@ -677,3 +636,5 @@ Ecco alcune idee per estendere e migliorare ulteriormente il progetto:
 ---
 
 Per qualsiasi problema o domanda, puoi creare un issue nel repository GitHub del progetto o contattare Emilio (@destone28) <emilio.destratis@gmail.com>.
+
+---

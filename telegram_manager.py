@@ -139,7 +139,7 @@ class TelegramManager:
             
         try:
             # Send text message
-            self.send_message_to_all("🚨 Camera detected!")
+            self.send_message_to_all("🚨 Camera alert detected!")
             
             # Send photo if available and photo sending is enabled
             if photo_path and self.config.SEND_PHOTOS_TELEGRAM:
@@ -147,12 +147,11 @@ class TelegramManager:
             
             # Send video if available and video sending is enabled
             if video_path and self.config.SEND_VIDEOS_TELEGRAM:
-                self.send_message_to_all("🎥 Video recording completed!")
                 self.send_video_to_all(video_path, "🎥 Camera detection video")
                 
             return True
         except Exception as e:
-            logger.error(f"Error notifying motion event: {e}")
+            logger.error(f"⚠️ Error 1 Camera Detection. Please try again.\nIf the problem persists, please report to @destone28, sending screenshot of the last messages with this bot.")
             return False
     
     def notify_audio_event(self, level, photo_path=None, video_path=None):
@@ -185,11 +184,6 @@ class TelegramManager:
             # Invia il video se disponibile e se l'invio video è abilitato
             video_sent = True
             if video_path and self.config.SEND_VIDEOS_TELEGRAM:
-                # Prima invia una notifica di completamento registrazione
-                self.send_message_to_all("🎥 Sound video recording completed!")
-                
-                # Breve pausa
-                time.sleep(0.5)
                 
                 # Invia il video effettivo
                 caption = f"🎥 Sound detection video - Level: {level}"
@@ -255,7 +249,9 @@ class TelegramManager:
             # Start command
             if text == "/start":
                 bot.send_message(chat_id,
-                    "🤖 *Welcome to the Nicla Vision monitoring system!*\n\n"
+                    "🤖 **Welcome to the Nicla Vision monitoring system!**\n"
+                    "The system has been developed by @destone28 sponsored by Arduino (https://www.arduino.cc).\n\n"
+                    "The system is designed to monitor the environment using a camera, microphone, and distance sensor.\n\n"
                     "You can control the system with the following commands:\n"
                     "/status - View the system status\n"
                     "/enable - Enable the system\n"
@@ -267,55 +263,49 @@ class TelegramManager:
             # Help command
             elif text == "/help":
                 bot.send_message(chat_id,
-                    "📋 *Available commands:*\n\n"
-                    "/status - Show the system status\n"
-                    "/enable - Enable global monitoring\n"
-                    "/disable - Disable global monitoring\n"
-                    "/camera_on - Enable camera monitoring\n"
-                    "/camera_off - Disable camera monitoring\n"
-                    "/audio_on - Enable microphone monitoring\n"
-                    "/audio_off - Disable microphone monitoring\n"
-                    "/distance_on - Enable distance sensor monitoring\n"
-                    "/distance_off - Disable distance sensor monitoring\n"
-                    "/photo - Take an instant photo\n"
-                    "/photos_on - Enable automatic photo sending\n"
-                    "/photos_off - Disable automatic photo sending\n"
-                    "/video - Record an instant video\n"
-                    "/videos_on - Enable automatic video recording\n"
-                    "/videos_off - Disable automatic video recording\n\n"
-                    
-                    "*Threshold settings:*\n"
-                    "/set_camera_threshold X - Set motion threshold (0.5-50)\n"
-                    "/set_audio_threshold X - Set audio threshold (500-20000)\n"
-                    "/set_distance_threshold X - Set distance threshold (10-2000)\n\n"
-                    
-                    "*Video settings:*\n"
-                    "/set_video_duration X - Set video duration in seconds (3-30)\n"
-                    "/set_video_fps X - Set frames per second (5-30)\n" 
-                    "/set_video_quality X - Set video quality (10-100)\n\n"
-                    
-                    "*Photo settings:*\n"
-                    "/set_photo_quality X - Set photo quality (10-100)\n"
-                    "/set_telegram_photo_quality X - Set Telegram photo quality (10-100)\n\n"
-                    
-                    "*Other settings:*\n"
-                    "/set_inhibit_period X - Set inhibition period in seconds (1-30)\n"
-                    "/set_audio_gain X - Set audio gain in dB (0-48)\n"
-                    "/set_distance_recalibration X - Set distance recalibration interval (60-3600)\n\n"
-                    
-                    "*Storage settings:*\n"
-                    "/set_max_images X - Set maximum number of images (5-100)\n"
-                    "/set_max_videos X - Set maximum number of videos (2-20)\n"
-                    "/set_max_telegram_photos X - Set maximum number of Telegram photos (2-20)\n\n"
-
-                    "*Other information:*\n"
-                    "/show_settings - Show all current settings"
+                    """General\n
+                    - `/start` - Start the bot and show the welcome message\n
+                    - `/status` - Show the system status\n
+                    - `/enable` - Enable global monitoring\n
+                    - `/disable` - Disable global monitoring\n
+                    - `/camera_on` - Enable camera monitoring\n
+                    - `/camera_off` - Disable camera monitoring\n
+                    - `/audio_on` - Enable microphone monitoring\n
+                    - `/audio_off` - Disable microphone monitoring\n
+                    - `/distance_on` - Enable distance sensor monitoring\n
+                    - `/distance_off` - Disable distance sensor monitoring\n
+                    - `/photo` - Take an instant photo\n
+                    - `/photos_on` - Enable automatic photo sending\n
+                    - `/photos_off` - Disable automatic photo sending\n
+                    - `/video` - Record an instant video\n
+                    - `/videos_on` - Enable automatic video recording\n
+                    - `/videos_off` - Disable automatic video recording\n
+                    \n
+                    Threshold Settings\n
+                    - `/set_camera_threshold X` - Set camera threshold (%) (1-50)\n
+                    - `/set_audio_threshold X` - Set audio threshold (%) (0-100)\n
+                    - `/set_distance_threshold X` - Set distance threshold (mm) (50-2000)\n
+                    \n
+                    Video Settings\n
+                    - `/set_video_duration X` - Set video duration in seconds (3-30)\n
+                    - `/set_video_fps X` - Set frames per second (5-15)\n
+                    - `/set_video_quality X` - Set video quality (10-100)\n
+                    \n
+                    Photo Settings\n
+                    - `/set_photo_quality X` - Set photo quality (10-100)\n
+                    \n
+                    Other Settings\n
+                    - `/set_inhibit_period X` - Set inhibition period in seconds (1-30)\n
+                    - `/set_audio_gain X` - Set audio gain in dB (0-48)\n
+                    \n
+                    Other Information\n
+                    - `/show_settings` - Show all current settings\n"""
                 )
 
             # Status command
             elif text == "/status":
                 status_msg = (
-                    "📊 *Monitoring system status*\n\n"
+                    "📊 **Monitoring system status**\n\n"
                     f"System: {'🟢 Active' if self.config.GLOBAL_ENABLE else '🔴 Disabled'}\n"
                     f"Camera monitoring: {'🟢 Active' if self.config.CAMERA_MONITORING_ENABLED else '🔴 Disabled'}\n"
                     f"Audio monitoring: {'🟢 Active' if self.config.AUDIO_MONITORING_ENABLED else '🔴 Disabled'}\n"
@@ -501,13 +491,12 @@ class TelegramManager:
 
             # Instant video command
             elif text == "/video":
-                bot.send_message(chat_id, "🎥 Recording an instant video...")
                 try:
                     if self.video_manager and self.video_manager.record_video("manual"):
                         video_path = self.video_manager.last_video_path
                         logger.info(f"Instant video recorded: {video_path}")
 
-                        bot.send_message(chat_id, "✅ Video successfully recorded! Sending...")
+                        bot.send_message(chat_id, "✅ Video successfully recorded!")
 
                         # Send the video
                         success = bot.send_video(chat_id, video_path, "🎥 Instant video requested via Telegram")
@@ -571,7 +560,7 @@ class TelegramManager:
 
         except Exception as e:
             logger.error(f"Error processing Telegram command: {e}")
-            bot.send_message(chat_id, f"❌ Error processing the command: {e}")
+            bot.send_message(chat_id, f"❌ Error processing the command: please check for syntax errors or contact @destone28 with a screenshot of your last conversation with the bot.")
 
         # Visual feedback
         green_led.on()
@@ -682,7 +671,7 @@ class TelegramManager:
             bot.send_message(chat_id, "❌ Invalid value. Use a number.")
         except Exception as e:
             logger.error(f"Error setting threshold {threshold_type}: {e}")
-            bot.send_message(chat_id, f"❌ Error setting threshold: {e}")
+            bot.send_message(chat_id, f"❌ Error setting threshold: report to @destone28, sending your last bot conversation screenshot")
     
     def _set_parameter(self, bot, chat_id, param_type, command):
         """
@@ -867,10 +856,10 @@ class TelegramManager:
             report = []
             
             # Header
-            report.append("📊 *CURRENT SYSTEM SETTINGS*\n")
+            report.append("📊 **Current System Settings**\n")
             
             # System status
-            report.append("*System Status:*")
+            report.append("**System Status:**")
             report.append(f"- System: {'✅ Enabled' if self.config.GLOBAL_ENABLE else '❌ Disabled'}")
             report.append(f"- Camera Monitoring: {'✅ Active' if self.config.CAMERA_MONITORING_ENABLED else '❌ Inactive'}")
             report.append(f"- Audio Monitoring: {'✅ Active' if self.config.AUDIO_MONITORING_ENABLED else '❌ Inactive'}")
@@ -878,7 +867,7 @@ class TelegramManager:
             report.append("")
             
             # Threshold settings
-            report.append("*Threshold Settings:*")
+            report.append("**Threshold Settings:**")
             report.append(f"- Camera Threshold: {self.config.MOTION_THRESHOLD}% (min: {self.config.MOTION_THRESHOLD_MIN}, max: {self.config.MOTION_THRESHOLD_MAX})")
             report.append(f"- Audio Threshold: {self.config.SOUND_THRESHOLD} (min: {self.config.SOUND_THRESHOLD_MIN}, max: {self.config.SOUND_THRESHOLD_MAX})")
             report.append(f"- Distance Threshold: {self.config.DISTANCE_THRESHOLD}mm (min: {self.config.DISTANCE_THRESHOLD_MIN}, max: {self.config.DISTANCE_THRESHOLD_MAX})")
@@ -886,7 +875,7 @@ class TelegramManager:
             report.append("")
             
             # Video settings
-            report.append("*Video Settings:*")
+            report.append("**Video Settings:**")
             report.append(f"- Video Recording: {'✅ Enabled' if self.config.RECORD_VIDEO_ENABLED else '❌ Disabled'}")
             report.append(f"- Send Videos on Telegram: {'✅ Enabled' if self.config.SEND_VIDEOS_TELEGRAM else '❌ Disabled'}")
             report.append(f"- Video Duration: {self.config.VIDEO_DURATION}s (min: {self.config.VIDEO_DURATION_MIN}, max: {self.config.VIDEO_DURATION_MAX})")
@@ -895,7 +884,7 @@ class TelegramManager:
             report.append("")
             
             # Photo settings
-            report.append("*Photo Settings:*")
+            report.append("**Photo Settings:**")
             report.append(f"- Send Photos on Telegram: {'✅ Enabled' if self.config.SEND_PHOTOS_TELEGRAM else '❌ Disabled'}")
             report.append(f"- Photo Quality: {self.config.PHOTO_QUALITY}% (min: 10, max: 100)")
             report.append(f"- Telegram Photo Quality: {self.config.TELEGRAM_PHOTO_QUALITY}% (min: 10, max: 100)")
@@ -903,20 +892,19 @@ class TelegramManager:
             report.append("")
             
             # Other settings
-            report.append("*Other Settings:*")
+            report.append("**Other Settings:**")
             report.append(f"- Audio Gain: {self.config.AUDIO_GAIN}dB (min: 0, max: 48)")
             report.append(f"- Distance Recalibration: {self.config.DISTANCE_RECALIBRATION}s (min: 60, max: 3600)")
             report.append("")
             
             # Storage settings
-            report.append("*Storage Settings:*")
-            report.append(f"- Max Images: {self.config.MAX_IMAGES} (min: 5, max: 100)")
-            report.append(f"- Max Videos: {self.config.MAX_VIDEOS} (min: 2, max: 20)")
-            report.append(f"- Max Telegram Photos: {self.config.MAX_TELEGRAM_PHOTOS} (min: 2, max: 20)")
+            report.append("**Storage Settings:**")
+            report.append(f"- Max Images saved in device memory: {self.config.MAX_IMAGES} (min: 2, max: 20)")
+            report.append(f"- Max Videos saved in device memory: {self.config.MAX_VIDEOS} (min: 2, max: 20)")
             
             # Join all report lines with a newline
             return "\n".join(report)
             
         except Exception as e:
             logger.error(f"Error generating settings report: {e}")
-            return "❌ Error generating the settings report."
+            return "❌ Error generating the settings report. Please report to @destone28, sending your last bot conversation screenshot."
