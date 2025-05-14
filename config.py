@@ -24,11 +24,11 @@ class Config:
     PHOTO_QUALITY = 90         # JPEG image quality (0-100)
 
     # Audio settings
-    SOUND_THRESHOLD = 10000    # Increased threshold to reduce false positives
+    SOUND_THRESHOLD = 5        # Increased threshold to reduce false positives
     SOUND_THRESHOLD_MIN = 0
-    SOUND_THRESHOLD_MAX = 50000
+    SOUND_THRESHOLD_MAX = 100
     MAX_AUDIO_PHOTOS = 5     # Reduced to save memory
-    AUDIO_GAIN = 0           # Reduced to lower sensitivity
+    AUDIO_GAIN = 24          # Reduced to lower sensitivity
 
     # Distance settings
     DISTANCE_THRESHOLD = 100   # Tolerance threshold in mm (reduced for higher sensitivity)

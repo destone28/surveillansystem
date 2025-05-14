@@ -172,17 +172,6 @@ class TelegramManager:
             return False
             
         try:
-            # Prepara il messaggio con il livello audio
-            message = f"🔊 Sound detected! Level: {level}"
-            
-            # Invia la notifica principale a tutti gli utenti autorizzati
-            success = self.send_message_to_all(message)
-            if not success:
-                return False
-                
-            # Piccola pausa tra l'invio del testo e dei media per evitare sovraccarichi
-            time.sleep(0.5)
-            
             # Invia la foto se disponibile e se l'invio foto è abilitato
             photo_sent = True
             if photo_path and self.config.SEND_PHOTOS_TELEGRAM:
