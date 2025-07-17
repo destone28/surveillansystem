@@ -58,12 +58,11 @@ The project maximizes the hardware capabilities of Arduino Nicla Vision:
 2. Install the IDE following the instructions for your operating system
 
 ### 3. Setup MicroPython firmware on Arduino Nicla Vision
-1. Download MicroPython firmware from this link: https://micropython.org/resources/firmware/ARDUINO_NICLA_VISION-20240105-v1.22.1.dfu
+1. Be sure to have latest available firmware installed on your Arduino Nicla Vision. Here the MicroPython firmware link to download MicroPython v1.25.0-r0 (tested version): https://micropython.org/resources/firmware/ARDUINO_NICLA_VISION-20250415-v1.25.0.dfu
 2. Connect Arduino Nicla Vision to your computer via USB cable
 3. Double-press the Arduino Nicla Vision reset button on the device: a green light will start blinking
 4. Click on the usb-attached icon: ![alt text](./img/usb_attached_icon.png)
-5. Click on "OK" when the following message appears 
-![alt text](./img/firmware_update.png)
+5. Click on "OK" when a confirmation message appears
 6. Do not interrupt the installation of the firmware on your Nicla Vision and wait until the end.
 
 ### 3. Arduino IoT Cloud Configuration
@@ -380,12 +379,11 @@ Il progetto sfrutta al massimo le capacità hardware dell'Arduino Nicla Vision:
 2. Installa l'IDE seguendo le istruzioni per il tuo sistema operativo
 
 ### 3. Configurazione del firmware MicroPython su Arduino Nicla Vision
-1. Scarica il firmware MicroPython da questo link: https://micropython.org/resources/firmware/ARDUINO_NICLA_VISION-20240105-v1.22.1.dfu
+1. Assicurati di avere l'ultima versione del firmware disponibile installata sul tuo Arduino Nicla Vision. Qui il link diretto per scaricare il firmware MicroPython v1.25.0-ro (versione testata): https://micropython.org/resources/firmware/ARDUINO_NICLA_VISION-20250415-v1.25.0.dfu
 2. Collega Arduino Nicla Vision al computer tramite cavo USB
 3. Premi due volte il pulsante di reset di Arduino Nicla Vision sul dispositivo: una luce verde inizierà a lampeggiare
 4. Clicca sull'icona usb-attached: ![alt text](./img/usb_attached_icon.png)
-5. Clicca su "OK" quando appare il seguente messaggio 
-![alt text](./img/firmware_update.png)
+5. Clicca su "OK" quando appare il messaggio di conferma
 6. Non interrompere l'installazione del firmware sul tuo Nicla Vision e attendi fino alla fine.
 
 ### 3. Configurazione Arduino IoT Cloud
