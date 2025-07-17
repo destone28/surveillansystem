@@ -18,8 +18,8 @@ class Config:
     MOTION_THRESHOLD = 5       # Threshold for motion detection (%)
     MOTION_THRESHOLD_MIN = 1   # Minimum value
     MOTION_THRESHOLD_MAX = 50  # Maximum value
-    FRAME_SIZE = sensor.QVGA   # Resolution for motion detection
-    PHOTO_SIZE = sensor.QVGA   # Resolution for photos
+    FRAME_SIZE = sensor.QQVGA   # Resolution for motion detection
+    PHOTO_SIZE = sensor.QQVGA   # Resolution for photos
     MAX_IMAGES = 20            # Maximum number of images to keep per camera
     PHOTO_QUALITY = 90         # JPEG image quality (0-100)
 
